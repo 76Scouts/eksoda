@@ -214,7 +214,7 @@
 /* ── ΡΥΘΜΙΣΗ: βάλε το /exec URL του Apps Script Web App ─────────────── */
 var API_URL = 'PASTE_APPS_SCRIPT_EXEC_URL';
 
-var BANKS = ['Τράπεζα Κύπρου','Ελληνική Τράπεζα','Eurobank Cyprus','Revolut','Άλλο'];
+var BANKS = ['Τράπεζα Κύπρου','Eurobank / πρώην Ελληνική Τράπεζα','Revolut','Άλλο'];
 var FALLBACK_FUNDS = ['Σύστημα','Αγέλη','Ομάδα','Κοινότητα','Ειδικό Βαθμοφόρων',
   'Ειδικό Project Κοινότητας','Ειδικό Ανακαίνιση Ομάδας','Ειδικό Ταμείο Επιλέκτου','Άλλο'];
 
@@ -402,9 +402,10 @@ $('#f').addEventListener('submit', function(ev){
 
 function success(id){
   $('#f').style.display='none';
+  var n=$('.notice');
+  if(n){ n.innerHTML='<b>Ευχαριστούμε!</b> Θα διευθετήσουμε την πληρωμή το συντομότερο.'; }
   $('#msg').innerHTML='<div class="msg ok"><b>Το αίτημα καταχωρήθηκε.</b>'+
-    (id?(' Αριθμός: <b>'+id+'</b>.'):'')+
-    ' Θα το επεξεργαστούμε και θα ενημερωθείς με την πληρωμή. Ευχαριστούμε!</div>';
+    (id?(' Αριθμός: <b>'+id+'</b>.'):'')+'</div>';
   window.scrollTo(0,0);
 }
 </script>
