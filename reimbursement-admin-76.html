@@ -50,6 +50,18 @@
   .tools{display:flex;gap:8px;margin:0 0 12px;flex-wrap:wrap}
   .tools button{padding:8px 12px;border:1px solid var(--blue2);background:#fff;color:var(--blue2);border-radius:9px;font-size:13px;font-weight:600}
   .a-reset{background:#eaf0fa;color:var(--blue2)}
+  .emodal-bg{position:fixed;inset:0;background:rgba(18,28,48,.55);display:none;align-items:flex-start;justify-content:center;padding:20px;z-index:100;overflow:auto}
+  .emodal-bg.show{display:flex}
+  .emodal{background:#fff;max-width:520px;width:100%;border-radius:14px;padding:18px 20px 20px;margin:auto;box-shadow:0 12px 40px rgba(0,0,0,.25)}
+  .emodal h3{color:var(--blue);margin:0 0 8px;font-size:18px}
+  .emodal label{display:block;font-size:12px;color:#5a6b8a;margin:9px 0 3px;font-weight:600}
+  .emodal input{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font-size:14px;background:#fff;color:#17233a}
+  .emodal .erow{display:flex;gap:10px}
+  .emodal .erow>div{flex:1}
+  .emodal .eact{display:flex;gap:8px;margin-top:16px}
+  .emodal .eact button{flex:1;padding:11px;border-radius:9px;font-size:14px;font-weight:600;border:1px solid var(--line);cursor:pointer}
+  .emodal .esave{background:var(--blue);color:#fff;border-color:var(--blue)}
+  .emodal .ecancel{background:#fff;color:#5a6b8a}
   @media print{ .bar,.tools,.acts,#status{display:none !important} body{background:#fff} .wrap{max-width:100%} .card{break-inside:avoid;border-color:#bbb} header{border-bottom:3px solid #000} }
 </style>
 </head>
@@ -85,6 +97,20 @@
   <div id="list"></div>
 </div>
 
+<div class="emodal-bg" id="editModal">
+  <div class="emodal">
+    <h3>Επεξεργασία αιτήματος</h3>
+    <div class="erow"><div><label>Όνομα</label><input id="e_first"></div><div><label>Επίθετο</label><input id="e_last"></div></div>
+    <label>Τηλέφωνο</label><input id="e_phone">
+    <label>Τι αφορά</label><input id="e_subject">
+    <div class="erow"><div><label>Ταμείο</label><input id="e_fund"></div><div><label>Ποσό (€)</label><input id="e_amount" inputmode="decimal"></div></div>
+    <div class="erow"><div><label>Προμηθευτής</label><input id="e_supplier"></div><div><label>Ημ. αγοράς</label><input id="e_purchaseDate" type="date"></div></div>
+    <label>Τράπεζα</label><input id="e_bank">
+    <div class="erow"><div><label>Δικαιούχος</label><input id="e_beneficiary"></div><div><label>IBAN / Λογ/σμός</label><input id="e_iban"></div></div>
+    <div class="eact"><button class="ecancel" id="editCancel">Άκυρο</button><button class="esave" id="editSave">Αποθήκευση</button></div>
+  </div>
+</div>
+
 <script>
 var API_URL = 'https://script.google.com/macros/s/AKfycbxNNs-68RXpYVlomtAtnpm3BOiy9C8nM-Ooap9LueWaaqKzqZRa_LIU8a0qJGwv33aE/exec';
 
@@ -106,6 +132,9 @@ else { $('#who').value=savedWho; }
 $('#year').value = scoutYear(new Date());
 $('#print').onclick = function(){ window.print(); };
 $('#csv').onclick = exportCsv;
+$('#editCancel').onclick = closeEdit;
+$('#editSave').onclick = sendEdit;
+$('#editModal').addEventListener('click', function(e){ if(e.target===$('#editModal')) closeEdit(); });
 
 function msg(text, kind){ var el=$('#status'); el.className='status show '+(kind||'info'); el.textContent=text; }
 function clearMsg(){ $('#status').className='status'; }
@@ -181,6 +210,7 @@ function render(rows, year){
         '<button class="a-yel" data-s="Καταχωρήθηκε">Καταχωρήθηκε</button>'+
         '<button class="a-green" data-s="Απεστάλη">Απεστάλη</button>'+
         '<button class="a-green" data-s="Μετρητά">Μετρητά</button>'+
+        '<button class="a-reset" data-edit="1">✏ Επεξεργασία</button>'+
         '<button class="a-reset" data-add="1">＋ Απόδειξη</button>'+
         '<button class="a-reset" data-s="Εκκρεμεί">↩ Εκκρεμεί</button>'+
       '</div>'+
@@ -191,6 +221,7 @@ function render(rows, year){
     btn.onclick=function(){
       var card=btn.closest('.card'); var row=card.getAttribute('data-row');
       if(btn.getAttribute('data-add')){ attachReceipt(row, card); return; }
+      if(btn.getAttribute('data-edit')){ openEdit(row); return; }
       setStatus(row, btn.getAttribute('data-s'), card);
     };
   });
@@ -226,6 +257,33 @@ function setStatus(row, status, card){
   fetch(API_URL,{ method:'POST', body: JSON.stringify(payload) })
     .then(function(r){ return r.json(); }).then(function(){ done(); }).catch(function(){ done(); });
   function done(){ setTimeout(loadList, 400); }
+}
+
+/* ── Επεξεργασία αιτήματος (γράφει στο ίδιο Sheet — συνυπάρχει με απευθείας edit στο Sheet) ── */
+var editingRow=null;
+function openEdit(row){
+  var r=null; for(var i=0;i<currentRows.length;i++){ if(String(currentRows[i].row)===String(row)){ r=currentRows[i]; break; } }
+  if(!r){ return; }
+  editingRow=row;
+  $('#e_first').value=r.first||''; $('#e_last').value=r.last||''; $('#e_phone').value=r.phone||'';
+  $('#e_subject').value=r.subject||''; $('#e_fund').value=r.fund||''; $('#e_amount').value=r.amount||'';
+  $('#e_supplier').value=r.supplier||''; $('#e_purchaseDate').value=r.purchaseDate||'';
+  $('#e_bank').value=r.bank||''; $('#e_beneficiary').value=r.beneficiary||''; $('#e_iban').value=r.iban||'';
+  $('#editModal').classList.add('show');
+}
+function closeEdit(){ $('#editModal').classList.remove('show'); editingRow=null; }
+function sendEdit(){
+  if(!editingRow){ return; }
+  var fields={
+    first:$('#e_first').value.trim(), last:$('#e_last').value.trim(), phone:$('#e_phone').value.trim(),
+    subject:$('#e_subject').value.trim(), fund:$('#e_fund').value.trim(), amount:$('#e_amount').value.trim(),
+    supplier:$('#e_supplier').value.trim(), purchaseDate:$('#e_purchaseDate').value.trim(),
+    bank:$('#e_bank').value.trim(), beneficiary:$('#e_beneficiary').value.trim(), iban:$('#e_iban').value.trim()
+  };
+  var payload={ action:'updateRow', key:$('#key').value.trim(), year:$('#year').value.trim(), row:Number(editingRow), fields:fields };
+  closeEdit();
+  fetch(API_URL,{ method:'POST', body: JSON.stringify(payload) })
+    .then(function(r){ return r.json(); }).then(function(){ setTimeout(loadList,500); }).catch(function(){ setTimeout(loadList,500); });
 }
 
 function csvCell(v){ v=String(v==null?'':v); return /[;"\n]/.test(v) ? ('"'+v.replace(/"/g,'""')+'"') : v; }
