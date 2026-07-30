@@ -39,6 +39,20 @@
   .fielderr{color:var(--err);font-size:12px;margin-top:4px;display:none}
   .gdpr{font-size:12px;color:#5a6b8a;background:#f2f6fc;border:1px solid var(--line);border-radius:10px;padding:11px 13px;margin:0 0 14px;line-height:1.55}
   .gdpr b{color:#3a4a5e}
+  .gdpr a{color:var(--blue2);cursor:pointer}
+  .modal-bg{position:fixed;inset:0;background:rgba(18,28,48,.55);display:none;align-items:flex-start;justify-content:center;padding:20px;z-index:100;overflow:auto}
+  .modal-bg.show{display:flex}
+  .modal{background:#fff;max-width:640px;width:100%;border-radius:14px;padding:20px 22px 24px;margin:auto;box-shadow:0 12px 40px rgba(0,0,0,.25)}
+  .modal h3{color:var(--blue);margin:0 0 2px;font-size:19px}
+  .modal h4{color:var(--blue);font-size:15px;margin:16px 0 4px;border-bottom:2px solid var(--yellow);padding-bottom:3px}
+  .modal p,.modal li{font-size:13.5px;color:#1c2530;line-height:1.6}
+  .modal .mtop{display:flex;justify-content:space-between;align-items:center;gap:10px}
+  .modal .mclose{border:1px solid var(--line);background:#fff;border-radius:8px;width:32px;height:32px;font-size:18px;cursor:pointer;color:#5a6b8a;flex:0 0 auto}
+  .modal .mmeta{color:#5a6b8a;font-size:12px;margin:0 0 4px}
+  .modal .mbox{background:#f2f6fc;border:1px solid var(--line);border-left:4px solid var(--yellow);border-radius:6px;padding:8px 12px;margin:8px 0}
+  .modal table{border-collapse:collapse;width:100%;font-size:13px;margin:6px 0}
+  .modal th,.modal td{border:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}
+  .modal th{background:#eef3fa}
 </style>
 </head>
 <body>
@@ -208,12 +222,52 @@
     </div>
 
     <div class="gdpr">
-      <b>Προστασία δεδομένων.</b> Τα στοιχεία που δίνεις (όνομα, τηλέφωνο, email, τραπεζικά στοιχεία, αποδείξεις) τα επεξεργάζεται το 76ο Σύστημα Προσκόπων Στροβόλου (υπό τη ΣΠΚ) μόνο για την επιστροφή των εξόδων σου και τα λογιστικά του Συστήματος — νομική βάση: έννομο συμφέρον της 76ης για τη διαχείριση των οικονομικών της· τα τραπεζικά είναι απαραίτητα για την πληρωμή. Πρόσβαση έχουν η ταμίας, ο Αρχηγός Συστήματος και —για έξοδα τμήματος— ο υπεύθυνος του τμήματος. Τα διατηρούμε για 6 έτη από το τέλος του οικονομικού έτους (λογιστικές/φορολογικές υποχρεώσεις) και μετά τα διαγράφουμε. Έχεις δικαίωμα πρόσβασης, διόρθωσης και διαγραφής — γράψε στο <a href="mailto:as@76.life" style="color:var(--blue2)">as@76.life</a>. Με την υποβολή δηλώνεις ότι ενημερώθηκες.
+      <b>Προστασία δεδομένων.</b> Τα στοιχεία που δίνεις (όνομα, τηλέφωνο, email, τραπεζικά στοιχεία, αποδείξεις) τα επεξεργάζεται το 76ο Σύστημα Προσκόπων Στροβόλου (υπό τη ΣΠΚ) μόνο για την επιστροφή των εξόδων σου και τα λογιστικά του Συστήματος — νομική βάση: έννομο συμφέρον της 76ης για τη διαχείριση των οικονομικών της· τα τραπεζικά είναι απαραίτητα για την πληρωμή. Πρόσβαση έχουν η ταμίας, ο Αρχηγός Συστήματος και —για έξοδα τμήματος— ο υπεύθυνος του τμήματος. Τα διατηρούμε για 6 έτη από το τέλος του οικονομικού έτους (λογιστικές/φορολογικές υποχρεώσεις) και μετά τα διαγράφουμε. Έχεις δικαίωμα πρόσβασης, διόρθωσης και διαγραφής — γράψε στο <a href="mailto:as@76.life" style="color:var(--blue2)">as@76.life</a>. Με την υποβολή δηλώνεις ότι ενημερώθηκες. <a id="policyLink" role="button" tabindex="0">Πλήρης Πολιτική Προστασίας Δεδομένων ↗</a>
     </div>
 
     <div id="msg"></div>
     <button type="submit" class="submit" id="btn">Υποβολή αιτήματος</button>
   </form>
+</div>
+
+<div class="modal-bg" id="policyModal">
+  <div class="modal">
+    <div class="mtop">
+      <h3>Πολιτική Προστασίας Δεδομένων</h3>
+      <button type="button" class="mclose" id="policyClose" aria-label="Κλείσιμο">✕</button>
+    </div>
+    <div class="mmeta">Φόρμα «Αίτημα Επιστροφής Εξόδων Βαθμοφόρων» · 76ο Σύστημα Προσκόπων Στροβόλου · Έκδοση 1 — Ιούλιος 2026</div>
+    <p>Πώς το <b>76ο Σύστημα Προσκόπων Στροβόλου</b> επεξεργάζεται τα προσωπικά σου δεδομένα όταν υποβάλλεις αίτημα επιστροφής εξόδων, σύμφωνα με τον GDPR (ΕΕ 2016/679) και τον Ν. 125(Ι)/2018 της Κύπρου.</p>
+
+    <h4>1. Ποιοι είμαστε</h4>
+    <p>Υπεύθυνος επεξεργασίας: το <b>76ο Σύστημα Προσκόπων Στροβόλου</b>, υπό τη σκέπη του Σώματος Προσκόπων Κύπρου (ΣΠΚ). Επικοινωνία: <a href="mailto:as@76.life">as@76.life</a>.</p>
+
+    <h4>2. Ποια δεδομένα συλλέγουμε</h4>
+    <p>Όνομα/επίθετο· τηλέφωνο και email (προαιρετικά)· στοιχεία του εξόδου (τι αφορά, ταμείο, προμηθευτής, ημερομηνία, ποσό)· <b>τραπεζικά στοιχεία</b> (δικαιούχος + IBAN/αριθμός λογαριασμού, ή στοιχεία προμηθευτή)· <b>αποδείξεις/τιμολόγια</b> που ανεβάζεις.</p>
+
+    <h4>3. Γιατί &amp; νομική βάση</h4>
+    <table>
+      <tr><th>Σκοπός</th><th>Νομική βάση</th></tr>
+      <tr><td>Επιστροφή εξόδων / εκτέλεση πληρωμής</td><td>Έννομο συμφέρον (άρθρ. 6(1)(στ))· τα τραπεζικά είναι απαραίτητα για την πληρωμή</td></tr>
+      <tr><td>Λογιστικά / απολογισμός / έλεγχος</td><td>Έννομο συμφέρον &amp; λογιστικές/φορολογικές υποχρεώσεις</td></tr>
+    </table>
+    <p>Δεν βασιζόμαστε σε συναίνεση — απλώς σε ενημερώνουμε.</p>
+
+    <h4>4. Ποιος τα βλέπει</h4>
+    <p>Η ταμίας και ο Αρχηγός Συστήματος. Για έξοδα τμήματος, ο υπεύθυνος του τμήματος λαμβάνει περιορισμένη ειδοποίηση <b>χωρίς</b> τα τραπεζικά σου στοιχεία. Δεν κοινοποιούνται σε τρίτους για άλλους σκοπούς.</p>
+
+    <h4>5. Πού αποθηκεύονται</h4>
+    <p>Σε Google Workspace/Drive (Sheet + αρχεία) και μέσω email. Η Google λειτουργεί ως εκτελών την επεξεργασία και ενδέχεται να αποθηκεύει δεδομένα εκτός ΕΟΧ, με κατάλληλες εγγυήσεις (τυποποιημένες συμβατικές ρήτρες / πλαίσιο επάρκειας).</p>
+
+    <h4>6. Πόσο καιρό</h4>
+    <div class="mbox"><b>6 έτη</b> από το τέλος του οικονομικού έτους (λογιστικές/φορολογικές υποχρεώσεις), και μετά ασφαλής διαγραφή.</div>
+
+    <h4>7. Τα δικαιώματά σου</h4>
+    <p>Πρόσβαση, διόρθωση, διαγραφή, περιορισμός, εναντίωση, φορητότητα (όπου εφαρμόζεται) → <a href="mailto:as@76.life">as@76.life</a>. Δικαίωμα καταγγελίας στο Γραφείο Επιτρόπου Προστασίας Δεδομένων Κύπρου (<a href="https://www.dataprotection.gov.cy" target="_blank" rel="noopener">dataprotection.gov.cy</a>).</p>
+
+    <h4>8. Ασφάλεια</h4>
+    <p>Εύλογα τεχνικά/οργανωτικά μέτρα· πρόσβαση μόνο σε όσους τα χρειάζονται για την επιστροφή εξόδων.</p>
+  </div>
 </div>
 
 <script>
@@ -253,6 +307,17 @@ loadFunds();
 /* Ημ. αγοράς: προεπιλογή σημερινή (τοπική), αλλάζεται ελεύθερα */
 (function(){ var d=new Date(), m=('0'+(d.getMonth()+1)).slice(-2), day=('0'+d.getDate()).slice(-2);
   $('[name="purchaseDate"]').value = d.getFullYear()+'-'+m+'-'+day; })();
+
+/* Pop-up πλήρους πολιτικής */
+(function(){
+  var bg=$('#policyModal'), link=$('#policyLink'), close=$('#policyClose');
+  function open(e){ if(e){e.preventDefault();} bg.classList.add('show'); }
+  function hide(){ bg.classList.remove('show'); }
+  link.addEventListener('click', open);
+  link.addEventListener('keydown', function(e){ if(e.key==='Enter'||e.key===' '){ open(e); } });
+  close.addEventListener('click', hide);
+  bg.addEventListener('click', function(e){ if(e.target===bg){ hide(); } });
+})();
 
 /* Τύπος πληρωμής: Επιστροφή / Απευθείας */
 var payType=null;
