@@ -105,8 +105,8 @@
       </div>
 
       <label class="req">Ποσό (€)</label>
-      <input name="amount" type="number" step="0.01" min="0" inputmode="decimal" placeholder="0.00">
-      <div class="fielderr" data-for="amount">Βάλε το ποσό</div>
+      <input name="amount" type="text" inputmode="decimal" placeholder="0.00">
+      <div class="fielderr" data-for="amount">Βάλε έγκυρο ποσό (π.χ. 24,50)</div>
     </div>
 
     <div class="card">
@@ -244,6 +244,10 @@ function loadFunds(){
 }
 loadFunds();
 
+/* Ημ. αγοράς: προεπιλογή σημερινή (τοπική), αλλάζεται ελεύθερα */
+(function(){ var d=new Date(), m=('0'+(d.getMonth()+1)).slice(-2), day=('0'+d.getDate()).slice(-2);
+  $('[name="purchaseDate"]').value = d.getFullYear()+'-'+m+'-'+day; })();
+
 /* Τύπος πληρωμής: Επιστροφή / Απευθείας */
 var payType=null;
 $$('[data-pay]').forEach(function(b){
@@ -329,6 +333,7 @@ function val(n){ return ($('[name="'+n+'"]').value||'').trim(); }
 function validate(){
   var ok=true, need=['firstName','lastName','phone','subject','fund','supplier','purchaseDate','amount'];
   need.forEach(function(n){ if(!val(n)){showErr(n);ok=false;} else clearErr(n); });
+  if(val('amount') && isNaN(parseFloat(val('amount').replace(',','.')))){ showErr('amount'); ok=false; }
 
   if(noReceipt){ if(!val('noReceiptReason')){showErr('noReceiptReason');ok=false;} else clearErr('noReceiptReason'); }
   else if(!receipts.length){ showErr('receipts'); ok=false; } else clearErr('receipts');
@@ -377,7 +382,7 @@ $('#f').addEventListener('submit', function(ev){
     email:val('email'), phone:val('phone'),
     subject:val('subject'), description:val('description'),
     fund:$('[name="fund"]').value, supplier:val('supplier'),
-    purchaseDate:$('[name="purchaseDate"]').value, amount:$('[name="amount"]').value,
+    purchaseDate:$('[name="purchaseDate"]').value, amount:val('amount').replace(',','.'),
     payType: payType,
     returning: isDirect ? false : returning,
     directBankLoc: isDirect ? bankLoc : '',
