@@ -55,6 +55,17 @@
   .modal table{border-collapse:collapse;width:100%;font-size:13px;margin:6px 0}
   .modal th,.modal td{border:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}
   .modal th{background:#eef3fa}
+  .crop-bg{position:fixed;inset:0;background:#0d1520;display:none;flex-direction:column;z-index:200}
+  .crop-bg.show{display:flex}
+  .crop-hint{color:#dfe8f5;text-align:center;font-size:13px;padding:10px 12px}
+  .crop-stage{flex:1;display:flex;align-items:center;justify-content:center;overflow:hidden;padding:6px}
+  #cropCanvas{max-width:100%;max-height:100%;touch-action:none;background:#000;border-radius:4px}
+  .crop-acts{display:flex;gap:8px;padding:12px;background:#0d1520}
+  .cbtn{flex:1;padding:13px 8px;border-radius:10px;font-size:15px;font-weight:600;border:1px solid #33465e;cursor:pointer}
+  .cghost{background:#1b2635;color:#dfe8f5}
+  .cprimary{background:var(--blue2);color:#fff;border-color:var(--blue2)}
+  .crop-busy{position:fixed;inset:0;background:rgba(13,21,32,.75);display:none;align-items:center;justify-content:center;color:#fff;font-size:15px;z-index:210}
+  .crop-busy.show{display:flex}
 </style>
 </head>
 <body>
@@ -272,6 +283,17 @@
   </div>
 </div>
 
+<div id="cropOverlay" class="crop-bg">
+  <div class="crop-hint">Σύρε τις 4 γωνίες γύρω από την απόδειξη — θα ισιωθεί σαν σκαναρισμένη.</div>
+  <div class="crop-stage"><canvas id="cropCanvas"></canvas></div>
+  <div class="crop-acts">
+    <button type="button" id="cropCancel" class="cbtn cghost">Άκυρο</button>
+    <button type="button" id="cropNo" class="cbtn cghost">Χωρίς crop</button>
+    <button type="button" id="cropApply" class="cbtn cprimary">✓ Εφαρμογή</button>
+  </div>
+</div>
+<div id="cropBusy" class="crop-busy">Επεξεργασία εικόνας…</div>
+
 <script>
 /* ── ΡΥΘΜΙΣΗ: βάλε το /exec URL του Apps Script Web App ─────────────── */
 var API_URL = 'https://script.google.com/macros/s/AKfycbxNNs-68RXpYVlomtAtnpm3BOiy9C8nM-Ooap9LueWaaqKzqZRa_LIU8a0qJGwv33aE/exec';
@@ -367,15 +389,200 @@ function otherToggle(sel, other){
 }
 otherToggle('bank','bankOther'); otherToggle('bankNew','bankNewOther');
 
-/* Αρχεία → base64 (γενικός handler για απόδειξη + αρχείο τραπεζικών) */
+/* ── Αρχεία: εικόνες → crop/deskew/enhance· PDF/άλλα → ως έχουν ─────────── */
 function wireFiles(inputSel, arr, thumbsSel, errName){
   $(inputSel).addEventListener('change', function(e){
-    Array.prototype.forEach.call(e.target.files, function(file){
-      var r=new FileReader();
-      r.onload=function(){ arr.push({name:file.name, type:file.type, data:r.result.split(',')[1]}); renderThumbs(arr, thumbsSel, errName); };
-      r.readAsDataURL(file);
-    });
+    var files=Array.prototype.slice.call(e.target.files);
     e.target.value='';
+    processQueue(files, arr, thumbsSel, errName);
+  });
+}
+function processQueue(files, arr, thumbsSel, errName){
+  if(!files.length) return;
+  var file=files.shift();
+  var isImg = file.type && file.type.indexOf('image')===0;
+  if(isImg){
+    processImage(file, function(res){
+      if(res){ arr.push({name:res.name, type:'image/jpeg', data:res.data}); renderThumbs(arr, thumbsSel, errName); }
+      processQueue(files, arr, thumbsSel, errName);
+    });
+  } else {                                   // PDF/λοιπά → ως έχουν (χωρίς crop)
+    var r=new FileReader();
+    r.onload=function(){ arr.push({name:file.name, type:file.type, data:r.result.split(',')[1]}); renderThumbs(arr, thumbsSel, errName); processQueue(files, arr, thumbsSel, errName); };
+    r.readAsDataURL(file);
+  }
+}
+
+/* EXIF-σωστός προσανατολισμός */
+function loadOriented(file, cb){
+  if(window.createImageBitmap){
+    try{
+      createImageBitmap(file,{imageOrientation:'from-image'}).then(function(b){ cb(b); }).catch(fallback);
+      return;
+    }catch(err){ /* fall through */ }
+  }
+  fallback();
+  function fallback(){
+    var fr=new FileReader();
+    fr.onload=function(){ var img=new Image(); img.onload=function(){ cb(img); }; img.src=fr.result; };
+    fr.readAsDataURL(file);
+  }
+}
+
+/* Καμβάς πηγής, scaled ≤ maxDim, άσπρο background */
+function fitCanvas(src, maxDim){
+  var w=src.width, h=src.height, sc=Math.min(1, maxDim/Math.max(w,h));
+  var cw=Math.max(1,Math.round(w*sc)), ch=Math.max(1,Math.round(h*sc));
+  var cv=document.createElement('canvas'); cv.width=cw; cv.height=ch;
+  var ctx=cv.getContext('2d'); ctx.fillStyle='#fff'; ctx.fillRect(0,0,cw,ch); ctx.drawImage(src,0,0,cw,ch);
+  return cv;
+}
+
+/* Enhance ανά pixel: v=(v-128)*1.18+128+6 */
+function enhanceCanvas(cv){
+  var ctx=cv.getContext('2d'), img=ctx.getImageData(0,0,cv.width,cv.height), d=img.data, i, c, v;
+  for(i=0;i<d.length;i+=4){ for(c=0;c<3;c++){ v=(d[i+c]-128)*1.18+128+6; d[i+c]= v<0?0:(v>255?255:v); } }
+  ctx.putImageData(img,0,0);
+}
+
+/* Gaussian elimination 8×8 (partial pivoting) */
+function solve8(A,b){
+  var n=8,i,r,c,p,t,f,piv,x=new Array(n);
+  for(i=0;i<n;i++){
+    p=i; for(r=i+1;r<n;r++){ if(Math.abs(A[r][i])>Math.abs(A[p][i])) p=r; }
+    if(p!==i){ t=A[p];A[p]=A[i];A[i]=t; t=b[p];b[p]=b[i];b[i]=t; }
+    piv=A[i][i]||1e-9;
+    for(r=0;r<n;r++){ if(r===i) continue; f=A[r][i]/piv; for(c=i;c<n;c++){ A[r][c]-=f*A[i][c]; } b[r]-=f*b[i]; }
+  }
+  for(i=0;i<n;i++) x[i]=b[i]/(A[i][i]||1e-9);
+  return x;
+}
+/* Homography output(U,V) → source(X,Y). src=[TL,TR,BR,BL], dst=output corners */
+function homographyOutToSrc(src, W, H){
+  var dst=[[0,0],[W,0],[W,H],[0,H]], A=[], b=[], i, U,V,X,Y;
+  for(i=0;i<4;i++){
+    U=dst[i][0]; V=dst[i][1]; X=src[i][0]; Y=src[i][1];
+    A.push([U,V,1,0,0,0,-U*X,-V*X]); b.push(X);
+    A.push([0,0,0,U,V,1,-U*Y,-V*Y]); b.push(Y);
+  }
+  return solve8(A,b); // [a,b,c,d,e,f,g,h]
+}
+function dist(p,q){ var dx=p[0]-q[0], dy=p[1]-q[1]; return Math.sqrt(dx*dx+dy*dy); }
+
+/* Perspective warp του quad (corners σε work-coords) → ίσιο ορθογώνιο */
+function warpCanvas(work, corners){
+  var TL=corners[0],TR=corners[1],BR=corners[2],BL=corners[3];
+  var W=Math.round(Math.max(dist(TL,TR),dist(BL,BR)));
+  var H=Math.round(Math.max(dist(TL,BL),dist(TR,BR)));
+  W=Math.max(1,W); H=Math.max(1,H);
+  var m=Math.max(W,H); if(m>1600){ var s=1600/m; W=Math.max(1,Math.round(W*s)); H=Math.max(1,Math.round(H*s)); }
+  var h=homographyOutToSrc([[TL[0],TL[1]],[TR[0],TR[1]],[BR[0],BR[1]],[BL[0],BL[1]]], W, H);
+  var a=h[0],b=h[1],c=h[2],d=h[3],e=h[4],f=h[5],g=h[6],hh=h[7];
+  var sctx=work.getContext('2d'), sw=work.width, sh=work.height;
+  var sd=sctx.getImageData(0,0,sw,sh).data;
+  var out=document.createElement('canvas'); out.width=W; out.height=H;
+  var octx=out.getContext('2d'), oimg=octx.createImageData(W,H), od=oimg.data;
+  var u,v,den,sx,sy,oi=0;
+  for(v=0;v<H;v++){
+    for(u=0;u<W;u++){
+      den=g*u+hh*v+1; sx=(a*u+b*v+c)/den; sy=(d*u+e*v+f)/den;
+      sampleBilinear(sd,sw,sh,sx,sy,od,oi); oi+=4;
+    }
+  }
+  octx.putImageData(oimg,0,0);
+  return out;
+}
+function sampleBilinear(sd,sw,sh,x,y,od,oi){
+  if(x<0||y<0||x>sw-1||y>sh-1){ od[oi]=255;od[oi+1]=255;od[oi+2]=255;od[oi+3]=255; return; }
+  var x0=Math.floor(x),y0=Math.floor(y),x1=Math.min(x0+1,sw-1),y1=Math.min(y0+1,sh-1),fx=x-x0,fy=y-y0,c,i00,i10,i01,i11,top,bot;
+  for(c=0;c<3;c++){
+    i00=(y0*sw+x0)*4+c; i10=(y0*sw+x1)*4+c; i01=(y1*sw+x0)*4+c; i11=(y1*sw+x1)*4+c;
+    top=sd[i00]*(1-fx)+sd[i10]*fx; bot=sd[i01]*(1-fx)+sd[i11]*fx;
+    od[oi+c]=top*(1-fy)+bot*fy;
+  }
+  od[oi+3]=255;
+}
+
+/* Meaningful filename: ΗΜ/ΝΙΑ_Κατηγορία_Vendor_Ποσό€.jpg */
+function buildName(){
+  var d=($('[name="purchaseDate"]').value||'').trim(),
+      fund=($('[name="fund"]').value||'').trim(),
+      sup=($('[name="supplier"]').value||'').trim(),
+      amt=(($('[name="amount"]').value||'')+'').trim();
+  var base=[d,fund,sup, amt?amt+'€':''].filter(Boolean).join('_') || 'apodeixi';
+  base=base.replace(/[\\/:*?"<>|]+/g,'').replace(/\s+/g,'_').replace(/_+/g,'_').replace(/^_|_$/g,'');
+  return (base||'apodeixi')+'.jpg';
+}
+
+/* Crop overlay */
+var _cropWork=null, _cropCorners=null, _cropDone=null, _cropDrag=-1;
+function cropDraw(){
+  var cv=$('#cropCanvas'), ctx=cv.getContext('2d');
+  ctx.clearRect(0,0,cv.width,cv.height); ctx.drawImage(_cropWork,0,0);
+  ctx.lineWidth=Math.max(2, cv.width*0.004); ctx.strokeStyle='#1b56a8';
+  ctx.beginPath();
+  ctx.moveTo(_cropCorners[0][0],_cropCorners[0][1]);
+  for(var i=1;i<4;i++) ctx.lineTo(_cropCorners[i][0],_cropCorners[i][1]);
+  ctx.closePath(); ctx.stroke();
+  var rad=Math.max(10, cv.width*0.02);
+  for(i=0;i<4;i++){
+    ctx.beginPath(); ctx.arc(_cropCorners[i][0],_cropCorners[i][1],rad,0,6.2832);
+    ctx.fillStyle='rgba(255,255,255,.9)'; ctx.fill(); ctx.lineWidth=Math.max(2,cv.width*0.005); ctx.strokeStyle='#1b56a8'; ctx.stroke();
+  }
+}
+function cropPt(e){
+  var cv=$('#cropCanvas'), r=cv.getBoundingClientRect();
+  return [ (e.clientX-r.left)*(cv.width/r.width), (e.clientY-r.top)*(cv.height/r.height) ];
+}
+function openCrop(work, onDone){
+  _cropWork=work; _cropDone=onDone;
+  var iw=work.width, ih=work.height;
+  _cropCorners=[[iw*0.08,ih*0.08],[iw*0.92,ih*0.08],[iw*0.92,ih*0.92],[iw*0.08,ih*0.92]];
+  var cv=$('#cropCanvas'); cv.width=iw; cv.height=ih;
+  cropDraw();
+  $('#cropOverlay').classList.add('show');
+}
+(function(){
+  var cv=$('#cropCanvas');
+  cv.addEventListener('pointerdown', function(e){
+    e.preventDefault();
+    var p=cropPt(e), best=-1, bd=1e9, thr=Math.max(cv.width,cv.height)*0.06;
+    for(var i=0;i<4;i++){ var dd=dist(p,_cropCorners[i]); if(dd<bd){ bd=dd; best=i; } }
+    if(bd<=thr){ _cropDrag=best; try{ cv.setPointerCapture(e.pointerId); }catch(x){} }
+  });
+  cv.addEventListener('pointermove', function(e){
+    if(_cropDrag<0) return; e.preventDefault();
+    var p=cropPt(e);
+    p[0]=Math.max(0,Math.min(cv.width,p[0])); p[1]=Math.max(0,Math.min(cv.height,p[1]));
+    _cropCorners[_cropDrag]=p; cropDraw();
+  });
+  function up(){ _cropDrag=-1; }
+  cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
+
+  function finish(mode){
+    $('#cropOverlay').classList.remove('show');
+    var corners=_cropCorners.map(function(c){ return [c[0],c[1]]; }), work=_cropWork, done=_cropDone;
+    _cropDone=null;
+    if(!done) return;
+    if(mode==='cancel'){ done(null); return; }
+    $('#cropBusy').classList.add('show');
+    setTimeout(function(){
+      var out = (mode==='crop') ? warpCanvas(work, corners) : work;   // nocrop: work ≤1500 (≤1600)
+      enhanceCanvas(out);
+      var data=out.toDataURL('image/jpeg',0.82).split(',')[1];
+      $('#cropBusy').classList.remove('show');
+      done({ name: buildName(), data: data });
+    }, 30);
+  }
+  $('#cropApply').addEventListener('click', function(){ finish('crop'); });
+  $('#cropNo').addEventListener('click', function(){ finish('nocrop'); });
+  $('#cropCancel').addEventListener('click', function(){ finish('cancel'); });
+})();
+
+function processImage(file, cb){
+  loadOriented(file, function(src){
+    var work=fitCanvas(src, 1500);
+    openCrop(work, function(res){ cb(res); });   // res = {name,data} ή null (άκυρο)
   });
 }
 function renderThumbs(arr, thumbsSel, errName){
