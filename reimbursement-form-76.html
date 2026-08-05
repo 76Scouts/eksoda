@@ -203,12 +203,17 @@
       <div id="directBlock" class="hidden">
         <label class="req">Πού είναι τα τραπεζικά στοιχεία του προμηθευτή;</label>
         <input type="hidden" name="directBankLoc" value="">
-        <div class="seg">
+        <div class="seg" style="flex-wrap:wrap">
           <button type="button" data-loc="invoice">Πάνω στο τιμολόγιο</button>
           <button type="button" data-loc="separate">Ξεχωριστό αρχείο</button>
           <button type="button" data-loc="typed">Τα γράφω εδώ</button>
+          <button type="button" data-loc="saved">Τον έχετε ήδη αποθηκευμένο</button>
         </div>
         <div class="fielderr" data-for="directBankLoc">Διάλεξε</div>
+
+        <div id="savedHint" class="hidden">
+          <div class="hint" style="margin-top:8px;background:#eef4f0;border:1px solid var(--line);border-radius:8px;padding:8px 10px">Θα χρησιμοποιήσουμε τα <b>αποθηκευμένα στοιχεία</b> του προμηθευτή από προηγούμενη συναλλαγή. Βεβαιώσου ότι το «Προμηθευτής» πιο πάνω είναι το σωστό όνομα.</div>
+        </div>
 
         <div id="bankFileBlock" class="hidden">
           <label class="req" style="margin-top:10px">Αρχείο με τα τραπεζικά στοιχεία</label>
@@ -387,6 +392,7 @@ $$('[data-loc]').forEach(function(b){
     $('[name="directBankLoc"]').value=bankLoc;
     $('#directTyped').classList.toggle('hidden', bankLoc!=='typed');
     $('#bankFileBlock').classList.toggle('hidden', bankLoc!=='separate');
+    $('#savedHint').classList.toggle('hidden', bankLoc!=='saved');
     clearErr('directBankLoc');
   };
 });
