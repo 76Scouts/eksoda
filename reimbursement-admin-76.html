@@ -42,6 +42,10 @@
   .meta div{margin:3px 0}
   .k{color:#5a6b8a}
   .recs a{display:inline-block;margin:4px 8px 0 0;font-size:13px;color:var(--blue2);text-decoration:none;border:1px solid var(--line);border-radius:8px;padding:4px 9px;background:#eaf0fa}
+  .fchip{display:inline-flex;align-items:center;margin:4px 8px 0 0;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:#eaf0fa;vertical-align:middle}
+  .fchip a{margin:0;border:0;border-radius:0;background:transparent;padding:5px 9px}
+  .fchip .fx{border:0;border-left:1px solid var(--line);background:#f4f8ff;color:#5a6b8a;padding:5px 9px;font-size:13px;line-height:1;cursor:pointer}
+  .fchip .fxd{color:#b3261e}
   .acts{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
   .acts button{flex:1;min-width:130px;padding:11px;border:0;border-radius:10px;font-size:14px;font-weight:700}
   .a-yel{background:var(--yel)}
@@ -95,6 +99,7 @@
   <div class="tools" id="tools" style="display:none">
     <button id="print">Εκτύπωση</button>
     <button id="csv">Εξαγωγή CSV (Excel)</button>
+    <label class="chk" style="margin-left:auto"><input type="checkbox" id="notify" checked> 📧 Ενημέρωσε ταμία σε αλλαγές αποδείξεων (ίδιο chain)</label>
   </div>
   <div id="count" class="count"></div>
   <div id="list"></div>
@@ -200,6 +205,13 @@ function datesLine(r){
   if(r.responsible) parts.push('Υπ.: '+esc(r.responsible));
   return parts.length ? '<div><span class="k">Διεκπ.:</span> '+parts.join(' · ')+'</div>' : '';
 }
+function fileChip(u, label, isBank){
+  return '<span class="fchip">'+
+    '<a href="'+esc(u)+'" target="_blank" rel="noopener"'+(isBank?' style="color:#7a610f"':'')+'>'+esc(label)+'</a>'+
+    '<button type="button" class="fx" title="Αντικατάσταση" data-repl-file="1" data-url="'+esc(u)+'" data-bank="'+(isBank?'1':'0')+'">⇄</button>'+
+    '<button type="button" class="fx fxd" title="Διαγραφή" data-del-file="1" data-url="'+esc(u)+'" data-bank="'+(isBank?'1':'0')+'">✕</button>'+
+  '</span>';
+}
 
 function render(rows, year){
   var list=$('#list');
@@ -208,10 +220,10 @@ function render(rows, year){
   $('#count').textContent = rows.length+' '+(rows.length===1?'αίτημα':'αιτήματα')+' · σύνολο €'+total.toFixed(2)+' · χρονιά '+year;
   list.innerHTML = rows.map(function(r){
     var recs = r.receipts.length
-      ? r.receipts.map(function(u,i){ return '<a href="'+esc(u)+'" target="_blank" rel="noopener">Απόδειξη '+(i+1)+'</a>'; }).join('')
+      ? r.receipts.map(function(u,i){ return fileChip(u, 'Απόδειξη '+(i+1), false); }).join('')
       : '<span class="badge b-red">⚠ Χωρίς απόδειξη</span>';
     var bankDocs = (r.bankDocs||[]).length
-      ? '<div class="recs" style="margin-top:4px">'+r.bankDocs.map(function(u,i){ return '<a href="'+esc(u)+'" target="_blank" rel="noopener" style="background:#fff5e6;border-color:#f6c73b">🏦 Στοιχεία προμηθευτή '+((r.bankDocs.length>1)?(i+1):'')+'</a>'; }).join('')+'</div>'
+      ? '<div class="recs" style="margin-top:4px">'+r.bankDocs.map(function(u,i){ return fileChip(u, '🏦 Στοιχεία προμηθευτή '+((r.bankDocs.length>1)?(i+1):''), true); }).join('')+'</div>'
       : '';
     var descLine = (r.description && String(r.description).trim()) ? '<div><span class="k">Σημ.:</span> '+esc(r.description)+'</div>' : '';
     var cancelled = (r.status==='Ακυρώθηκε');
@@ -255,6 +267,41 @@ function render(rows, year){
       setStatus(row, btn.getAttribute('data-s'), card);
     };
   });
+
+  Array.prototype.forEach.call(list.querySelectorAll('.fx'), function(btn){
+    btn.onclick=function(){
+      var card=btn.closest('.card'), row=card.getAttribute('data-row');
+      var url=btn.getAttribute('data-url'), isBank=btn.getAttribute('data-bank')==='1';
+      if(btn.getAttribute('data-del-file')) deleteFile(row, url, isBank);
+      else replaceFile(row, url, isBank);
+    };
+  });
+}
+
+function notifyFlag(){ var n=$('#notify'); return n ? n.checked : false; }
+function deleteFile(row, url, isBank){
+  if(!confirm('Διαγραφή '+(isBank?'στοιχείων προμηθευτή':'απόδειξης')+';\n\nΤο αρχείο μεταφέρεται στον Κάδο του Drive (ανακτήσιμο), δεν διαγράφεται οριστικά.')) return;
+  var payload={ action:'deleteReceipt', key:$('#key').value.trim(), year:$('#year').value.trim(), row:Number(row), url:url, notify:notifyFlag() };
+  msg('Διαγραφή αρχείου…','info');
+  fetch(API_URL,{ method:'POST', body: JSON.stringify(payload) })
+    .then(function(r){ return r.json(); }).then(function(){ setTimeout(loadList,600); }).catch(function(){ setTimeout(loadList,600); });
+}
+function replaceFile(row, url, isBank){
+  var inp=document.createElement('input');
+  inp.type='file'; inp.accept='image/*,application/pdf';
+  inp.onchange=function(){
+    if(!inp.files.length) return;
+    var file=inp.files[0], r=new FileReader();
+    r.onload=function(){
+      var payload={ action:'replaceReceipt', key:$('#key').value.trim(), year:$('#year').value.trim(), row:Number(row),
+        url:url, isBank:isBank, notify:notifyFlag(), files:[{name:file.name,type:file.type,data:r.result.split(',')[1]}] };
+      msg('Αντικατάσταση αρχείου…','info');
+      fetch(API_URL,{ method:'POST', body: JSON.stringify(payload) })
+        .then(function(x){ return x.json(); }).then(function(){ setTimeout(loadList,600); }).catch(function(){ setTimeout(loadList,600); });
+    };
+    r.readAsDataURL(file);
+  };
+  inp.click();
 }
 
 function attachReceipt(row, card){
@@ -273,7 +320,7 @@ function attachReceipt(row, card){
   inp.click();
 }
 function sendAttach(row, files){
-  var payload={ action:'addReceipt', key:$('#key').value.trim(), year:$('#year').value.trim(), row:Number(row), files:files };
+  var payload={ action:'addReceipt', key:$('#key').value.trim(), year:$('#year').value.trim(), row:Number(row), files:files, notify:notifyFlag() };
   fetch(API_URL,{ method:'POST', body: JSON.stringify(payload) })
     .then(function(r){ return r.json(); }).then(function(){ setTimeout(loadList,500); }).catch(function(){ setTimeout(loadList,500); });
 }
