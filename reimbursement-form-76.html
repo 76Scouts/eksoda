@@ -317,6 +317,7 @@ function loadFunds(){
   var done=false;
   window.__funds = function(res){ done=true;
     fill('fund', (res && res.ok && res.funds && res.funds.length) ? res.funds : FALLBACK_FUNDS);
+    try{ var dr=JSON.parse(sessionStorage.getItem(DRAFT_KEY)||'{}'); if(dr.fund){ $('[name="fund"]').value=dr.fund; } }catch(e){}
   };
   if(API_URL.indexOf('http')===0){
     var sc=document.createElement('script');
@@ -331,6 +332,14 @@ loadFunds();
 /* Ημ. αγοράς: προεπιλογή σημερινή (τοπική), αλλάζεται ελεύθερα */
 (function(){ var d=new Date(), m=('0'+(d.getMonth()+1)).slice(-2), day=('0'+d.getDate()).slice(-2);
   $('[name="purchaseDate"]').value = d.getFullYear()+'-'+m+'-'+day; })();
+
+/* Auto-save πρόχειρου (να μη χάνεται ό,τι γράφτηκε αν ανοίξει κάμερα/reload σε κινητό) */
+var DRAFT_KEY='reimbDraft76';
+var draftFields=['firstName','lastName','email','phone','subject','description','supplier','purchaseDate','amount','beneficiary','iban','dBeneficiary','dBank','dIban','bankOther','bankNewOther','noReceiptReason'];
+function saveDraft(){ try{ var o={}; draftFields.forEach(function(n){ var el=$('[name="'+n+'"]'); if(el) o[n]=el.value; }); var fv=$('[name="fund"]'); if(fv) o.fund=fv.value; sessionStorage.setItem(DRAFT_KEY, JSON.stringify(o)); }catch(e){} }
+function clearDraft(){ try{ sessionStorage.removeItem(DRAFT_KEY); }catch(e){} }
+(function(){ try{ var o=JSON.parse(sessionStorage.getItem(DRAFT_KEY)||'{}'); draftFields.forEach(function(n){ var el=$('[name="'+n+'"]'); if(el&&o[n]) el.value=o[n]; }); }catch(e){} })();
+$('#f').addEventListener('input', saveDraft);
 
 /* Pop-up πλήρους πολιτικής */
 (function(){
@@ -681,6 +690,7 @@ $('#f').addEventListener('submit', function(ev){
 });
 
 function success(id){
+  clearDraft();
   $('#f').style.display='none';
   var n=$('.notice');
   if(n){ n.innerHTML='<b>Ευχαριστούμε!</b> Θα διευθετήσουμε την πληρωμή το συντομότερο.'; }
