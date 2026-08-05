@@ -37,6 +37,7 @@
   .b-red{background:#e06666;color:#fff}
   .b-yel{background:var(--yel)}
   .b-green{background:var(--ok)}
+  .b-grey{background:#cfd6e0;color:#5a6b8a}
   .meta{margin:8px 0 0;font-size:13.5px}
   .meta div{margin:3px 0}
   .k{color:#5a6b8a}
@@ -50,6 +51,8 @@
   .tools{display:flex;gap:8px;margin:0 0 12px;flex-wrap:wrap}
   .tools button{padding:8px 12px;border:1px solid var(--blue2);background:#fff;color:var(--blue2);border-radius:9px;font-size:13px;font-weight:600}
   .a-reset{background:#eaf0fa;color:var(--blue2)}
+  .a-cancel{background:#fdecec;color:#b3261e}
+  .card.is-cancelled{opacity:.6;background:#f7f7f9}
   .emodal-bg{position:fixed;inset:0;background:rgba(18,28,48,.55);display:none;align-items:flex-start;justify-content:center;padding:20px;z-index:100;overflow:auto}
   .emodal-bg.show{display:flex}
   .emodal{background:#fff;max-width:520px;width:100%;border-radius:14px;padding:18px 20px 20px;margin:auto;box-shadow:0 12px 40px rgba(0,0,0,.25)}
@@ -83,8 +86,8 @@
       </select>
       <input id="whoOther" placeholder="Όνομα / ρόλος" style="display:none;margin-top:6px">
     </div>
-    <div class="fld" style="max-width:140px"><label>Χρονιά</label><input id="year"></div>
-    <label class="chk" style="margin-bottom:6px"><input type="checkbox" id="all"> Όλα (όχι μόνο εκκρεμή)</label>
+    <div class="fld" style="max-width:150px"><label>Χρονιά</label><select id="year"></select></div>
+    <label class="chk" style="margin-bottom:6px"><input type="checkbox" id="all"> Όλα (μαζί με κλεισμένα/ακυρωμένα)</label>
     <button class="btn" id="load">Φόρτωσε</button>
   </div>
 
@@ -105,6 +108,8 @@
     <label>Τι αφορά</label><input id="e_subject">
     <div class="erow"><div><label>Ταμείο</label><input id="e_fund"></div><div><label>Ποσό (€)</label><input id="e_amount" inputmode="decimal"></div></div>
     <div class="erow"><div><label>Προμηθευτής</label><input id="e_supplier"></div><div><label>Ημ. αγοράς</label><input id="e_purchaseDate" type="date"></div></div>
+    <div class="erow"><div><label>Ημ. αιτήματος (υποβολής)</label><input id="e_submitDate" type="date"></div><div><label>Ημ. καταχώρησης</label><input id="e_recordDate" type="date"></div></div>
+    <div class="erow"><div><label>Ημ. πληρωμής</label><input id="e_payDate" type="date"></div><div></div></div>
     <label>Τράπεζα</label><input id="e_bank">
     <div class="erow"><div><label>Δικαιούχος</label><input id="e_beneficiary"></div><div><label>IBAN / Λογ/σμός</label><input id="e_iban"></div></div>
     <div class="eact"><button class="ecancel" id="editCancel">Άκυρο</button><button class="esave" id="editSave">Αποθήκευση</button></div>
@@ -129,7 +134,13 @@ $('#key').value = localStorage.getItem('reimbKey') || '';
 var savedWho = localStorage.getItem('reimbWho') || '';
 if(savedWho && WHO_OPTS.indexOf(savedWho)<0){ $('#who').value='__other'; $('#whoOther').style.display='block'; $('#whoOther').value=savedWho; }
 else { $('#who').value=savedWho; }
-$('#year').value = scoutYear(new Date());
+// Χρονιά = dropdown (τρέχουσα σκαυτική χρονιά ± μερικές)
+(function(){
+  var now=new Date(), startY=(now.getMonth()>=7)?now.getFullYear():now.getFullYear()-1;
+  var sel=$('#year'), cur=scoutYear(now);
+  for(var y=startY+1; y>=startY-4; y--){ var lbl=y+'-'+String((y+1)%100).padStart(2,'0');
+    var o=document.createElement('option'); o.value=lbl; o.textContent=lbl; if(lbl===cur) o.selected=true; sel.appendChild(o); }
+})();
 $('#print').onclick = function(){ window.print(); };
 $('#csv').onclick = exportCsv;
 $('#editCancel').onclick = closeEdit;
@@ -179,7 +190,15 @@ function payLine(r){
 function statusBadge(s){
   if(s==='Καταχωρήθηκε') return '<span class="badge b-yel">Καταχωρήθηκε</span>';
   if(s==='Απεστάλη'||s==='Μετρητά') return '<span class="badge b-green">'+esc(s)+'</span>';
+  if(s==='Ακυρώθηκε') return '<span class="badge b-grey">Ακυρώθηκε</span>';
   return '<span class="badge b-orange">Εκκρεμεί</span>';
+}
+function datesLine(r){
+  var parts=[];
+  if(r.recordDate) parts.push('Καταχ.: '+esc(r.recordDate));
+  if(r.payDate) parts.push('Πληρ.: '+esc(r.payDate));
+  if(r.responsible) parts.push('Υπ.: '+esc(r.responsible));
+  return parts.length ? '<div><span class="k">Διεκπ.:</span> '+parts.join(' · ')+'</div>' : '';
 }
 
 function render(rows, year){
@@ -191,8 +210,12 @@ function render(rows, year){
     var recs = r.receipts.length
       ? r.receipts.map(function(u,i){ return '<a href="'+esc(u)+'" target="_blank" rel="noopener">Απόδειξη '+(i+1)+'</a>'; }).join('')
       : '<span class="badge b-red">⚠ Χωρίς απόδειξη</span>';
+    var bankDocs = (r.bankDocs||[]).length
+      ? '<div class="recs" style="margin-top:4px">'+r.bankDocs.map(function(u,i){ return '<a href="'+esc(u)+'" target="_blank" rel="noopener" style="background:#fff5e6;border-color:#f6c73b">🏦 Στοιχεία προμηθευτή '+((r.bankDocs.length>1)?(i+1):'')+'</a>'; }).join('')+'</div>'
+      : '';
     var descLine = (r.description && String(r.description).trim()) ? '<div><span class="k">Σημ.:</span> '+esc(r.description)+'</div>' : '';
-    return '<div class="card" data-row="'+r.row+'">'+
+    var cancelled = (r.status==='Ακυρώθηκε');
+    return '<div class="card'+(cancelled?' is-cancelled':'')+'" data-row="'+r.row+'">'+
       '<div class="top"><div>'+
         '<div class="idline">'+esc(r.id)+' · '+esc(r.date)+'</div>'+
         '<div class="name">'+esc(r.name)+' <span class="k" style="font-size:13px;font-weight:400">'+esc(r.phone||'')+'</span></div>'+
@@ -204,7 +227,9 @@ function render(rows, year){
         descLine+
         '<div><span class="k">Προμηθευτής:</span> '+esc(r.supplier)+' · '+esc(r.purchaseDate)+'</div>'+
         payLine(r)+
+        datesLine(r)+
         '<div class="recs" style="margin-top:6px">'+recs+'</div>'+
+        bankDocs+
       '</div>'+
       '<div class="acts">'+
         '<button class="a-yel" data-s="Καταχωρήθηκε">Καταχωρήθηκε</button>'+
@@ -213,6 +238,7 @@ function render(rows, year){
         '<button class="a-reset" data-edit="1">✏ Επεξεργασία</button>'+
         '<button class="a-reset" data-add="1">＋ Απόδειξη</button>'+
         '<button class="a-reset" data-s="Εκκρεμεί">↩ Εκκρεμεί</button>'+
+        '<button class="a-cancel" data-cancel="1">🚫 Ακύρωση</button>'+
       '</div>'+
     '</div>';
   }).join('');
@@ -222,6 +248,10 @@ function render(rows, year){
       var card=btn.closest('.card'); var row=card.getAttribute('data-row');
       if(btn.getAttribute('data-add')){ attachReceipt(row, card); return; }
       if(btn.getAttribute('data-edit')){ openEdit(row); return; }
+      if(btn.getAttribute('data-cancel')){
+        if(!confirm('Να σημειωθεί ως ΑΚΥΡΩΜΕΝΟ;\n\nΔΕΝ διαγράφεται — μένει στο αρχείο με ένδειξη «Ακυρώθηκε» (φαίνεται μόνο με «Όλα»).')) return;
+        setStatus(row, 'Ακυρώθηκε', card); return;
+      }
       setStatus(row, btn.getAttribute('data-s'), card);
     };
   });
@@ -248,15 +278,24 @@ function sendAttach(row, files){
     .then(function(r){ return r.json(); }).then(function(){ setTimeout(loadList,500); }).catch(function(){ setTimeout(loadList,500); });
 }
 
+function todayISO(){ var d=new Date(),m=('0'+(d.getMonth()+1)).slice(-2),day=('0'+d.getDate()).slice(-2); return d.getFullYear()+'-'+m+'-'+day; }
 function setStatus(row, status, card){
   var who=whoValue();
-  if(status!=='Εκκρεμεί' && !who){ msg('Επίλεξε Υπεύθυνο πριν κλείσεις αίτημα.','bad'); return; }
-  Array.prototype.forEach.call(card.querySelectorAll('button'), function(b){ b.disabled=true; });
-  card.style.opacity='.5';
+  if(status!=='Εκκρεμεί' && status!=='Ακυρώθηκε' && !who){ msg('Επίλεξε Υπεύθυνο πριν κλείσεις αίτημα.','bad'); return; }
   var payload={ action:'updateStatus', key:$('#key').value.trim(), year:$('#year').value.trim(), row:Number(row), status:status, responsible:who };
-  fetch(API_URL,{ method:'POST', body: JSON.stringify(payload) })
-    .then(function(r){ return r.json(); }).then(function(){ done(); }).catch(function(){ done(); });
-  function done(){ setTimeout(loadList, 400); }
+  fetch(API_URL,{ method:'POST', body: JSON.stringify(payload) }).then(function(r){ return r.json(); }).catch(function(){});
+  // Ενημέρωση ΕΠΙΤΟΠΟΥ (καμία επαναφόρτωση → δεν εξαφανίζεται, δεν ξαναζητά κλειδί)
+  var t=todayISO();
+  for(var i=0;i<currentRows.length;i++){ if(String(currentRows[i].row)===String(row)){
+    var r=currentRows[i]; r.status=status;
+    if(status==='Εκκρεμεί'){ r.recordDate=''; r.payDate=''; r.responsible=''; }
+    else if(status==='Καταχωρήθηκε'){ if(!r.recordDate) r.recordDate=t; r.responsible=who; }
+    else if(status==='Απεστάλη'||status==='Μετρητά'){ if(!r.recordDate) r.recordDate=t; r.payDate=t; r.responsible=who; }
+    else if(status==='Ακυρώθηκε'){ r.responsible=who; }
+    break;
+  } }
+  render(currentRows, currentYear);
+  msg('Ενημερώθηκε: '+status+'. (Πάτησε «Φόρτωσε» για ανανέωση λίστας.)','info');
 }
 
 /* ── Επεξεργασία αιτήματος (γράφει στο ίδιο Sheet — συνυπάρχει με απευθείας edit στο Sheet) ── */
@@ -268,6 +307,7 @@ function openEdit(row){
   $('#e_first').value=r.first||''; $('#e_last').value=r.last||''; $('#e_phone').value=r.phone||'';
   $('#e_subject').value=r.subject||''; $('#e_fund').value=r.fund||''; $('#e_amount').value=r.amount||'';
   $('#e_supplier').value=r.supplier||''; $('#e_purchaseDate').value=r.purchaseDate||'';
+  $('#e_submitDate').value=r.submitDate||''; $('#e_recordDate').value=r.recordDate||''; $('#e_payDate').value=r.payDate||'';
   $('#e_bank').value=r.bank||''; $('#e_beneficiary').value=r.beneficiary||''; $('#e_iban').value=r.iban||'';
   $('#editModal').classList.add('show');
 }
@@ -278,6 +318,7 @@ function sendEdit(){
     first:$('#e_first').value.trim(), last:$('#e_last').value.trim(), phone:$('#e_phone').value.trim(),
     subject:$('#e_subject').value.trim(), fund:$('#e_fund').value.trim(), amount:$('#e_amount').value.trim(),
     supplier:$('#e_supplier').value.trim(), purchaseDate:$('#e_purchaseDate').value.trim(),
+    submitDate:$('#e_submitDate').value.trim(), recordDate:$('#e_recordDate').value.trim(), payDate:$('#e_payDate').value.trim(),
     bank:$('#e_bank').value.trim(), beneficiary:$('#e_beneficiary').value.trim(), iban:$('#e_iban').value.trim()
   };
   var payload={ action:'updateRow', key:$('#key').value.trim(), year:$('#year').value.trim(), row:Number(editingRow), fields:fields };
@@ -289,10 +330,10 @@ function sendEdit(){
 function csvCell(v){ v=String(v==null?'':v); return /[;"\n]/.test(v) ? ('"'+v.replace(/"/g,'""')+'"') : v; }
 function exportCsv(){
   if(!currentRows.length){ msg('Δεν υπάρχουν δεδομένα για εξαγωγή.','bad'); return; }
-  var cols=['Α/Α','Ημ/νία','Όνομα','Τηλέφωνο','Ταμείο','Αφορά','Προμηθευτής','Ημ.αγοράς','Ποσό (€)','Τύπος πληρωμής','Ξαναέλαβε','Τραπεζικά πού','Τράπεζα','Δικαιούχος','IBAN','Κατάσταση','Αποδείξεις'];
+  var cols=['Α/Α','Ημ/νία υποβολής','Όνομα','Τηλέφωνο','Ταμείο','Αφορά','Προμηθευτής','Ημ.αγοράς','Ποσό (€)','Τύπος πληρωμής','Ξαναέλαβε','Τραπεζικά πού','Τράπεζα','Δικαιούχος','IBAN','Κατάσταση','Ημ.καταχώρησης','Ημ.πληρωμής','Υπεύθυνος','Αποδείξεις','Στοιχεία προμηθευτή'];
   var lines=[cols.join(';')];
   currentRows.forEach(function(r){
-    lines.push([r.id,r.date,r.name,r.phone,r.fund,r.subject,r.supplier,r.purchaseDate,r.amount,r.payType,r.returning,r.bankLoc,r.bank,r.beneficiary,r.iban,r.status,(r.receipts||[]).join(' | ')].map(csvCell).join(';'));
+    lines.push([r.id,r.date,r.name,r.phone,r.fund,r.subject,r.supplier,r.purchaseDate,r.amount,r.payType,r.returning,r.bankLoc,r.bank,r.beneficiary,r.iban,r.status,r.recordDate||'',r.payDate||'',r.responsible||'',(r.receipts||[]).join(' | '),(r.bankDocs||[]).join(' | ')].map(csvCell).join(';'));
   });
   var blob=new Blob(['﻿'+lines.join('\r\n')],{type:'text/csv;charset=utf-8'});
   var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='Εξοδα_'+(currentYear||'')+'.csv'; document.body.appendChild(a); a.click(); a.remove();
