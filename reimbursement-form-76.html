@@ -140,7 +140,7 @@
 
     <div class="card">
       <label class="req">Απόδειξη / Τιμολόγιο</label>
-      <div class="hint">Ανέβασε αρχείο (φωτο ή PDF) ή τράβα φωτογραφία τώρα. Μπορείς να βάλεις πάνω από μία.</div>
+      <div class="hint">Ανέβασε αρχείο ή τράβα φωτογραφία τώρα. Μπορείς να βάλεις πάνω από μία.</div>
       <input id="file" type="file" accept="image/*,application/pdf" multiple class="files">
       <div id="thumbs"></div>
       <div class="fielderr" data-for="receipts">Ανέβασε απόδειξη ή τσέκαρε «Δεν έχω απόδειξη»</div>
@@ -304,8 +304,9 @@
 var API_URL = 'https://script.google.com/macros/s/AKfycbxNNs-68RXpYVlomtAtnpm3BOiy9C8nM-Ooap9LueWaaqKzqZRa_LIU8a0qJGwv33aE/exec';
 
 var BANKS = ['Τράπεζα Κύπρου','Eurobank / πρώην Ελληνική Τράπεζα','Revolut','Άλλο'];
-var FALLBACK_FUNDS = ['Σύστημα','Αγέλη','Ομάδα','Κοινότητα','Ειδικό Βαθμοφόρων',
-  'Ειδικό Project Κοινότητας','Ειδικό Ανακαίνιση Ομάδας','Ειδικό Ταμείο Επιλέκτου','Άλλο'];
+var FALLBACK_FUNDS = ['TS Ταμείο Συστήματος','TA Ταμείο Αγέλης','TO Ταμείο Ομάδας','TK Ταμείο Κοινότητας',
+  'PR Πρόβλεψη (υποταμείο TS)','TV Ταμείο Βαθμοφόρων','PK Ειδικό Project ΚΑ','PO Ειδικό Ανακαίνιση ΟΠ',
+  'EP Ειδικό Επίλεκτος','Άλλο'];
 
 var receipts = [];   // {name,type,data(base64)}
 var $ = function(s,r){return (r||document).querySelector(s)};
