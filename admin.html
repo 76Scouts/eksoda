@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Έξοδα Βαθμοφόρων — Διαχείριση</title>
+<style>
+  :root{ --blue:#123c78; --blue2:#1b56a8; --yellow:#f6c73b; --line:#d7e0ee; --bg:#eef3fa; --err:#c0392b;
+         --orange:#f6b26b; --ok:#93c47d; --yel:#ffe599; }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:#17233a;line-height:1.45}
+  .wrap{max-width:1120px;margin:0 auto;padding:16px}
+  #list{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:12px;align-items:start}
+  header{background:var(--blue);color:#fff;border-radius:14px;padding:16px 20px;margin:8px 0 14px;border-bottom:5px solid var(--yellow)}
+  header h1{margin:0;font-size:19px}
+  header h1 span{color:var(--yellow)}
+  .bar{background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-bottom:14px;display:flex;flex-wrap:wrap;gap:10px;align-items:end}
+  .bar .fld{flex:1;min-width:130px}
+  label{display:block;font-weight:600;font-size:12px;margin:0 0 4px;color:#5a6b8a}
+  input,select{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:9px;font-size:14px;background:#fff;color:#17233a}
+  button{cursor:pointer;font-family:inherit}
+  .btn{padding:9px 14px;border:1px solid var(--blue2);background:var(--blue2);color:#fff;border-radius:9px;font-size:14px;font-weight:600}
+  .btn.ghost{background:#fff;color:var(--blue2)}
+  .chk{display:flex;align-items:center;gap:6px;font-size:13px;color:#3a4a5e}
+  .chk input{width:auto}
+  .status{padding:14px;border-radius:12px;margin-bottom:12px;font-size:14px;display:none}
+  .status.show{display:block}
+  .status.bad{background:#fdecea;border:1px solid #e6a8a1;color:var(--err)}
+  .status.info{background:#e9f1fb;border:1px solid var(--blue2)}
+  .card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px 16px}
+  .top{display:flex;justify-content:space-between;align-items:start;gap:10px;flex-wrap:wrap}
+  .idline{font-size:12px;color:#5a6b8a}
+  .idcopy{cursor:pointer;border:1px dashed var(--line);border-radius:6px;padding:1px 6px;background:#f4f8ff}
+  .idcopy:hover{border-color:var(--blue2);color:var(--blue2)}
+  .name{font-size:16px;font-weight:700;margin:2px 0}
+  .amt{font-size:22px;font-weight:800;color:var(--blue)}
+  .badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:700}
+  .b-orange{background:var(--orange)}
+  .b-red{background:#e06666;color:#fff}
+  .b-yel{background:var(--yel)}
+  .b-green{background:var(--ok)}
+  .b-grey{background:#cfd6e0;color:#5a6b8a}
+  .meta{margin:8px 0 0;font-size:13.5px}
+  .meta div{margin:3px 0}
+  .k{color:#5a6b8a}
+  .recs a{display:inline-block;margin:4px 8px 0 0;font-size:13px;color:var(--blue2);text-decoration:none;border:1px solid var(--line);border-radius:8px;padding:4px 9px;background:#eaf0fa}
+  .fchip{display:inline-flex;align-items:center;margin:4px 8px 0 0;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:#eaf0fa;vertical-align:middle}
+  .fchip a{margin:0;border:0;border-radius:0;background:transparent;padding:5px 9px}
+  .fchip .fx{border:0;border-left:1px solid var(--line);background:#f4f8ff;color:#5a6b8a;padding:5px 9px;font-size:13px;line-height:1;cursor:pointer}
+  .fchip .fxd{color:#b3261e}
+  .acts{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+  .acts button{flex:1;min-width:130px;padding:11px;border:0;border-radius:10px;font-size:14px;font-weight:700}
+  .a-yel{background:var(--yel)}
+  .a-green{background:var(--ok)}
+  .empty{grid-column:1/-1;background:#fff;border:1px dashed var(--line);border-radius:14px;padding:28px;text-align:center;color:#5a6b8a}
+  .count{font-size:13px;color:#5a6b8a;margin:0 0 10px}
+  .tools{display:flex;gap:8px;margin:0 0 12px;flex-wrap:wrap}
+  .tools button{padding:8px 12px;border:1px solid var(--blue2);background:#fff;color:var(--blue2);border-radius:9px;font-size:13px;font-weight:600}
+  .a-reset{background:#eaf0fa;color:var(--blue2)}
+  .a-cancel{background:#fdecec;color:#b3261e}
+  .card.is-cancelled{opacity:.6;background:#f7f7f9}
+  .emodal-bg{position:fixed;inset:0;background:rgba(18,28,48,.55);display:none;align-items:flex-start;justify-content:center;padding:20px;z-index:100;overflow:auto}
+  .emodal-bg.show{display:flex}
+  .emodal{background:#fff;max-width:520px;width:100%;border-radius:14px;padding:18px 20px 20px;margin:auto;box-shadow:0 12px 40px rgba(0,0,0,.25)}
+  .emodal h3{color:var(--blue);margin:0 0 8px;font-size:18px}
+  .emodal label{display:block;font-size:12px;color:#5a6b8a;margin:9px 0 3px;font-weight:600}
+  .emodal input{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font-size:14px;background:#fff;color:#17233a}
+  .emodal .erow{display:flex;gap:10px}
+  .emodal .erow>div{flex:1}
+  .emodal .eact{display:flex;gap:8px;margin-top:16px}
+  .emodal .eact button{flex:1;padding:11px;border-radius:9px;font-size:14px;font-weight:600;border:1px solid var(--line);cursor:pointer}
+  .emodal .esave{background:var(--blue);color:#fff;border-color:var(--blue)}
+  .emodal .ecancel{background:#fff;color:#5a6b8a}
+  @media print{ .bar,.tools,.acts,#status{display:none !important} body{background:#fff} .wrap{max-width:100%} .card{break-inside:avoid;border-color:#bbb} header{border-bottom:3px solid #000} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Έξοδα Βαθμοφόρων <span>·</span> Διαχείριση</h1>
+  </header>
+
+  <div class="bar">
+    <div class="fld"><label>Κλειδί</label><input id="key" type="password" placeholder="ADMIN_KEY"></div>
+    <div class="fld"><label>Υπεύθυνος (ποιος τα τρέχει)</label>
+      <select id="who">
+        <option value="">— Επίλεξε —</option>
+        <option>Ταμίας</option>
+        <option>Πρόεδρος</option>
+        <option>ΑΣ</option>
+        <option value="__other">Άλλο…</option>
+      </select>
+      <input id="whoOther" placeholder="Όνομα / ρόλος" style="display:none;margin-top:6px">
+    </div>
+    <div class="fld" style="max-width:150px"><label>Χρονιά</label><select id="year"></select></div>
+    <label class="chk" style="margin-bottom:6px"><input type="checkbox" id="all"> Όλα (μαζί με κλεισμένα/ακυρωμένα)</label>
+    <button class="btn" id="load">Φόρτωσε</button>
+  </div>
+
+  <div id="status" class="status"></div>
+  <div class="tools" id="tools" style="display:none">
+    <button id="print">Εκτύπωση</button>
+    <button id="csv">Εξαγωγή CSV (Excel)</button>
+    <label class="chk" style="margin-left:auto"><input type="checkbox" id="notify" checked> 📧 Ενημέρωσε ταμία σε αλλαγές αποδείξεων (ίδιο chain)</label>
+  </div>
+  <div id="count" class="count"></div>
+  <div id="list"></div>
+</div>
+
+<div class="emodal-bg" id="editModal">
+  <div class="emodal">
+    <h3>Επεξεργασία αιτήματος</h3>
+    <div class="erow"><div><label>Όνομα</label><input id="e_first"></div><div><label>Επίθετο</label><input id="e_last"></div></div>
+    <label>Τηλέφωνο</label><input id="e_phone">
+    <label>Τι αφορά</label><input id="e_subject">
+    <div class="erow"><div><label>Ταμείο</label><input id="e_fund"></div><div><label>Ποσό (€)</label><input id="e_amount" inputmode="decimal"></div></div>
+    <div class="erow"><div><label>Προμηθευτής</label><input id="e_supplier"></div><div><label>Ημ. αγοράς</label><input id="e_purchaseDate" type="date"></div></div>
+    <div class="erow"><div><label>Ημ. αιτήματος (υποβολής)</label><input id="e_submitDate" type="date"></div><div><label>Ημ. καταχώρησης</label><input id="e_recordDate" type="date"></div></div>
+    <div class="erow"><div><label>Ημ. πληρωμής</label><input id="e_payDate" type="date"></div><div></div></div>
+    <label>Τράπεζα</label><input id="e_bank">
+    <div class="erow"><div><label>Δικαιούχος</label><input id="e_beneficiary"></div><div><label>IBAN / Λογ/σμός</label><input id="e_iban"></div></div>
+    <div class="eact"><button class="ecancel" id="editCancel">Άκυρο</button><button class="esave" id="editSave">Αποθήκευση</button></div>
+  </div>
+</div>
+
+<script>
+var API_URL = 'https://script.google.com/macros/s/AKfycbxNNs-68RXpYVlomtAtnpm3BOiy9C8nM-Ooap9LueWaaqKzqZRa_LIU8a0qJGwv33aE/exec';
+
+var $ = function(s){return document.querySelector(s)};
+function scoutYear(d){var y=d.getFullYear(),m=d.getMonth();var s=(m>=7)?y:y-1;return s+'-'+String((s+1)%100).padStart(2,'0');}
+
+var currentRows=[], currentYear='';
+
+// Υπεύθυνος: select + «Άλλο»
+var WHO_OPTS=['Ταμίας','Πρόεδρος','ΑΣ'];
+function whoValue(){ var v=$('#who').value; return v==='__other' ? ($('#whoOther').value||'').trim() : v; }
+$('#who').addEventListener('change', function(){ $('#whoOther').style.display = (this.value==='__other') ? 'block' : 'none'; });
+
+// restore
+$('#key').value = localStorage.getItem('reimbKey') || '';
+var savedWho = localStorage.getItem('reimbWho') || '';
+if(savedWho && WHO_OPTS.indexOf(savedWho)<0){ $('#who').value='__other'; $('#whoOther').style.display='block'; $('#whoOther').value=savedWho; }
+else { $('#who').value=savedWho; }
+// Χρονιά = dropdown (τρέχουσα σκαυτική χρονιά ± μερικές)
+(function(){
+  var now=new Date(), startY=(now.getMonth()>=7)?now.getFullYear():now.getFullYear()-1;
+  var sel=$('#year'), cur=scoutYear(now);
+  for(var y=startY+1; y>=startY-4; y--){ var lbl=y+'-'+String((y+1)%100).padStart(2,'0');
+    var o=document.createElement('option'); o.value=lbl; o.textContent=lbl; if(lbl===cur) o.selected=true; sel.appendChild(o); }
+})();
+$('#print').onclick = function(){ window.print(); };
+$('#csv').onclick = exportCsv;
+$('#editCancel').onclick = closeEdit;
+$('#editSave').onclick = sendEdit;
+$('#editModal').addEventListener('click', function(e){ if(e.target===$('#editModal')) closeEdit(); });
+
+function msg(text, kind){ var el=$('#status'); el.className='status show '+(kind||'info'); el.textContent=text; }
+function clearMsg(){ $('#status').className='status'; }
+
+$('#load').onclick = loadList;
+
+function loadList(){
+  localStorage.setItem('reimbKey', $('#key').value.trim());
+  localStorage.setItem('reimbWho', whoValue());
+  if(!$('#key').value.trim()){ msg('Βάλε το κλειδί.','bad'); return; }
+  if(API_URL.indexOf('http')!==0){ msg('Λείπει το API_URL (δες SETUP).','bad'); return; }
+  clearMsg(); $('#list').innerHTML=''; $('#count').textContent='Φόρτωση…';
+
+  var cb='__list_'+Date.now();
+  window[cb]=function(res){
+    $('#count').textContent='';
+    if(!res || !res.ok){ msg(res && res.error==='auth' ? 'Λάθος κλειδί.' : 'Σφάλμα φόρτωσης.','bad'); return; }
+    currentRows = res.rows||[]; currentYear = res.year;
+    $('#tools').style.display = currentRows.length ? 'flex' : 'none';
+    render(currentRows, currentYear);
+    try{ delete window[cb]; }catch(e){}
+  };
+  var sc=document.createElement('script');
+  sc.src=API_URL+'?action=list&key='+encodeURIComponent($('#key').value.trim())+
+    '&year='+encodeURIComponent($('#year').value.trim())+'&all='+($('#all').checked?'1':'0')+
+    '&callback='+cb+'&t='+Date.now();
+  sc.onerror=function(){ $('#count').textContent=''; msg('Δεν φόρτωσε (δίκτυο ή λάθος URL).','bad'); };
+  document.body.appendChild(sc);
+}
+
+function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+
+function payLine(r){
+  if(r.payType==='Απευθείας στον προμηθευτή'){
+    var t='<div><span class="k">Πληρωμή:</span> Απευθείας στον προμηθευτή · τραπεζικά: '+esc(r.bankLoc||'')+'</div>';
+    if((r.iban||r.beneficiary)) t+='<div><span class="k">Στοιχεία:</span> '+esc(r.beneficiary||'')+' · '+esc(r.bank||'')+' · '+esc(r.iban||'')+'</div>';
+    return t;
+  }
+  if(r.returning==='Ναι') return '<div><span class="k">Πληρωμή:</span> Επιστροφή · Τράπεζα: '+esc(r.bank||'')+' (έχει ξαναλάβει)</div>';
+  return '<div><span class="k">Πληρωμή:</span> Επιστροφή (νέος λογ.): '+esc(r.beneficiary||'')+' · '+esc(r.bank||'')+' · '+esc(r.iban||'')+'</div>';
+}
+function statusBadge(s){
+  if(s==='Καταχωρήθηκε') return '<span class="badge b-yel">Καταχωρήθηκε</span>';
+  if(s==='Απεστάλη'||s==='Μετρητά') return '<span class="badge b-green">'+esc(s)+'</span>';
+  if(s==='Ακυρώθηκε') return '<span class="badge b-grey">Ακυρώθηκε</span>';
+  return '<span class="badge b-orange">Εκκρεμεί</span>';
+}
+function datesLine(r){
+  var parts=[];
+  if(r.recordDate) parts.push('Καταχ.: '+esc(r.recordDate));
+  if(r.payDate) parts.push('Πληρ.: '+esc(r.payDate));
+  if(r.responsible) parts.push('Υπ.: '+esc(r.responsible));
+  return parts.length ? '<div><span class="k">Διεκπ.:</span> '+parts.join(' · ')+'</div>' : '';
+}
+function fileChip(u, label, isBank){
+  return '<span class="fchip">'+
+    '<a href="'+esc(u)+'" target="_blank" rel="noopener"'+(isBank?' style="color:#7a610f"':'')+'>'+esc(label)+'</a>'+
+    '<button type="button" class="fx" title="Αντικατάσταση" data-repl-file="1" data-url="'+esc(u)+'" data-bank="'+(isBank?'1':'0')+'">⇄</button>'+
+    '<button type="button" class="fx fxd" title="Διαγραφή" data-del-file="1" data-url="'+esc(u)+'" data-bank="'+(isBank?'1':'0')+'">✕</button>'+
+  '</span>';
+}
+
+function render(rows, year){
+  var list=$('#list');
+  if(!rows.length){ list.innerHTML='<div class="empty">Δεν υπάρχουν '+($('#all').checked?'αιτήματα':'εκκρεμή αιτήματα')+' για τη χρονιά '+esc(year)+'.</div>'; return; }
+  var total=rows.reduce(function(a,r){var n=parseFloat(String(r.amount).replace(',','.'));return a+(isNaN(n)?0:n);},0);
+  $('#count').textContent = rows.length+' '+(rows.length===1?'αίτημα':'αιτήματα')+' · σύνολο €'+total.toFixed(2)+' · χρονιά '+year;
+  list.innerHTML = rows.map(function(r){
+    var recs = r.receipts.length
+      ? r.receipts.map(function(u,i){ return fileChip(u, 'Απόδειξη '+(i+1), false); }).join('')
+      : '<span class="badge b-red">⚠ Χωρίς απόδειξη</span>';
+    var bankDocs = (r.bankDocs||[]).length
+      ? '<div class="recs" style="margin-top:4px">'+r.bankDocs.map(function(u,i){ return fileChip(u, '🏦 Στοιχεία προμηθευτή '+((r.bankDocs.length>1)?(i+1):''), true); }).join('')+'</div>'
+      : '';
+    var descLine = (r.description && String(r.description).trim()) ? '<div><span class="k">Σημ.:</span> '+esc(r.description)+'</div>' : '';
+    var cancelled = (r.status==='Ακυρώθηκε');
+    return '<div class="card'+(cancelled?' is-cancelled':'')+'" data-row="'+r.row+'">'+
+      '<div class="top"><div>'+
+        '<div class="idline"><span class="idcopy" data-id="'+esc(r.id)+'" title="Κλικ: αντιγραφή για την περιγραφή της τραπεζικής εντολής">'+esc(r.id)+' ⧉</span> · '+esc(r.date)+'</div>'+
+        '<div class="name">'+esc(r.name)+' <span class="k" style="font-size:13px;font-weight:400">'+esc(r.phone||'')+'</span></div>'+
+        statusBadge(r.status)+
+      '</div><div class="amt">€'+esc(r.amount)+'</div></div>'+
+      '<div class="meta">'+
+        '<div><span class="k">Ταμείο:</span> '+esc(r.fund)+'</div>'+
+        '<div><span class="k">Αφορά:</span> '+esc(r.subject)+'</div>'+
+        descLine+
+        '<div><span class="k">Προμηθευτής:</span> '+esc(r.supplier)+' · '+esc(r.purchaseDate)+'</div>'+
+        payLine(r)+
+        datesLine(r)+
+        '<div class="recs" style="margin-top:6px">'+recs+'</div>'+
+        bankDocs+
+      '</div>'+
+      '<div class="acts">'+
+        '<button class="a-yel" data-s="Καταχωρήθηκε">Καταχωρήθηκε</button>'+
+        '<button class="a-green" data-s="Απεστάλη">Απεστάλη</button>'+
+        '<button class="a-green" data-s="Μετρητά">Μετρητά</button>'+
+        '<button class="a-reset" data-edit="1">✏ Επεξεργασία</button>'+
+        '<button class="a-reset" data-add="1">＋ Απόδειξη</button>'+
+        '<button class="a-reset" data-s="Εκκρεμεί">↩ Εκκρεμεί</button>'+
+        '<button class="a-cancel" data-cancel="1">🚫 Ακύρωση</button>'+
+      '</div>'+
+    '</div>';
+  }).join('');
+
+  Array.prototype.forEach.call(list.querySelectorAll('.acts button'), function(btn){
+    btn.onclick=function(){
+      var card=btn.closest('.card'); var row=card.getAttribute('data-row');
+      if(btn.getAttribute('data-add')){ attachReceipt(row, card); return; }
+      if(btn.getAttribute('data-edit')){ openEdit(row); return; }
+      if(btn.getAttribute('data-cancel')){
+        if(!confirm('Να σημειωθεί ως ΑΚΥΡΩΜΕΝΟ;\n\nΔΕΝ διαγράφεται — μένει στο αρχείο με ένδειξη «Ακυρώθηκε» (φαίνεται μόνο με «Όλα»).')) return;
+        setStatus(row, 'Ακυρώθηκε', card); return;
+      }
+      setStatus(row, btn.getAttribute('data-s'), card);
+    };
+  });
+
+  Array.prototype.forEach.call(list.querySelectorAll('.fx'), function(btn){
+    btn.onclick=function(){
+      var card=btn.closest('.card'), row=card.getAttribute('data-row');
+      var url=btn.getAttribute('data-url'), isBank=btn.getAttribute('data-bank')==='1';
+      if(btn.getAttribute('data-del-file')) deleteFile(row, url, isBank);
+      else replaceFile(row, url, isBank);
+    };
+  });
+}
+
+function notifyFlag(){ var n=$('#notify'); return n ? n.checked : false; }
+function deleteFile(row, url, isBank){
+  if(!confirm('Διαγραφή '+(isBank?'στοιχείων προμηθευτή':'απόδειξης')+';\n\nΤο αρχείο μεταφέρεται στον Κάδο του Drive (ανακτήσιμο), δεν διαγράφεται οριστικά.')) return;
+  var payload={ action:'deleteReceipt', key:$('#key').value.trim(), year:$('#year').value.trim(), row:Number(row), url:url, notify:notifyFlag() };
+  msg('Διαγραφή αρχείου…','info');
+  fetch(API_URL,{ method:'POST', body: JSON.stringify(payload) })
+    .then(function(r){ return r.json(); }).then(function(){ setTimeout(loadList,600); }).catch(function(){ setTimeout(loadList,600); });
+}
+function replaceFile(row, url, isBank){
+  var inp=document.createElement('input');
+  inp.type='file'; inp.accept='image/*,application/pdf';
+  inp.onchange=function(){
+    if(!inp.files.length) return;
+    var file=inp.files[0], r=new FileReader();
+    r.onload=function(){
+      var payload={ action:'replaceReceipt', key:$('#key').value.trim(), year:$('#year').value.trim(), row:Number(row),
+        url:url, isBank:isBank, notify:notifyFlag(), files:[{name:file.name,type:file.type,data:r.result.split(',')[1]}] };
+      msg('Αντικατάσταση αρχείου…','info');
+      fetch(API_URL,{ method:'POST', body: JSON.stringify(payload) })
+        .then(function(x){ return x.json(); }).then(function(){ setTimeout(loadList,600); }).catch(function(){ setTimeout(loadList,600); });
+    };
+    r.readAsDataURL(file);
+  };
+  inp.click();
+}
+
+function attachReceipt(row, card){
+  var inp=document.createElement('input');
+  inp.type='file'; inp.accept='image/*,application/pdf'; inp.multiple=true;
+  inp.onchange=function(){
+    var fl=inp.files, n=fl.length, files=[], done=0;
+    if(!n) return;
+    card.style.opacity='.5';
+    Array.prototype.forEach.call(fl, function(file){
+      var r=new FileReader();
+      r.onload=function(){ files.push({name:file.name,type:file.type,data:r.result.split(',')[1]}); if(++done===n) sendAttach(row, files); };
+      r.readAsDataURL(file);
+    });
+  };
+  inp.click();
+}
+function sendAttach(row, files){
+  var payload={ action:'addReceipt', key:$('#key').value.trim(), year:$('#year').value.trim(), row:Number(row), files:files, notify:notifyFlag() };
+  fetch(API_URL,{ method:'POST', body: JSON.stringify(payload) })
+    .then(function(r){ return r.json(); }).then(function(){ setTimeout(loadList,500); }).catch(function(){ setTimeout(loadList,500); });
+}
+
+function todayISO(){ var d=new Date(),m=('0'+(d.getMonth()+1)).slice(-2),day=('0'+d.getDate()).slice(-2); return d.getFullYear()+'-'+m+'-'+day; }
+function setStatus(row, status, card){
+  var who=whoValue();
+  if(status!=='Εκκρεμεί' && status!=='Ακυρώθηκε' && !who){ msg('Επίλεξε Υπεύθυνο πριν κλείσεις αίτημα.','bad'); return; }
+  var payload={ action:'updateStatus', key:$('#key').value.trim(), year:$('#year').value.trim(), row:Number(row), status:status, responsible:who };
+  fetch(API_URL,{ method:'POST', body: JSON.stringify(payload) }).then(function(r){ return r.json(); }).catch(function(){});
+  // Ενημέρωση ΕΠΙΤΟΠΟΥ (καμία επαναφόρτωση → δεν εξαφανίζεται, δεν ξαναζητά κλειδί)
+  var t=todayISO();
+  for(var i=0;i<currentRows.length;i++){ if(String(currentRows[i].row)===String(row)){
+    var r=currentRows[i]; r.status=status;
+    if(status==='Εκκρεμεί'){ r.recordDate=''; r.payDate=''; r.responsible=''; }
+    else if(status==='Καταχωρήθηκε'){ if(!r.recordDate) r.recordDate=t; r.responsible=who; }
+    else if(status==='Απεστάλη'||status==='Μετρητά'){ if(!r.recordDate) r.recordDate=t; r.payDate=t; r.responsible=who; }
+    else if(status==='Ακυρώθηκε'){ r.responsible=who; }
+    break;
+  } }
+  render(currentRows, currentYear);
+  msg('Ενημερώθηκε: '+status+'. (Πάτησε «Φόρτωσε» για ανανέωση λίστας.)','info');
+}
+
+/* ── Επεξεργασία αιτήματος (γράφει στο ίδιο Sheet — συνυπάρχει με απευθείας edit στο Sheet) ── */
+var editingRow=null;
+function openEdit(row){
+  var r=null; for(var i=0;i<currentRows.length;i++){ if(String(currentRows[i].row)===String(row)){ r=currentRows[i]; break; } }
+  if(!r){ return; }
+  editingRow=row;
+  $('#e_first').value=r.first||''; $('#e_last').value=r.last||''; $('#e_phone').value=r.phone||'';
+  $('#e_subject').value=r.subject||''; $('#e_fund').value=r.fund||''; $('#e_amount').value=r.amount||'';
+  $('#e_supplier').value=r.supplier||''; $('#e_purchaseDate').value=r.purchaseDate||'';
+  $('#e_submitDate').value=r.submitDate||''; $('#e_recordDate').value=r.recordDate||''; $('#e_payDate').value=r.payDate||'';
+  $('#e_bank').value=r.bank||''; $('#e_beneficiary').value=r.beneficiary||''; $('#e_iban').value=r.iban||'';
+  $('#editModal').classList.add('show');
+}
+function closeEdit(){ $('#editModal').classList.remove('show'); editingRow=null; }
+function sendEdit(){
+  if(!editingRow){ return; }
+  var fields={
+    first:$('#e_first').value.trim(), last:$('#e_last').value.trim(), phone:$('#e_phone').value.trim(),
+    subject:$('#e_subject').value.trim(), fund:$('#e_fund').value.trim(), amount:$('#e_amount').value.trim(),
+    supplier:$('#e_supplier').value.trim(), purchaseDate:$('#e_purchaseDate').value.trim(),
+    submitDate:$('#e_submitDate').value.trim(), recordDate:$('#e_recordDate').value.trim(), payDate:$('#e_payDate').value.trim(),
+    bank:$('#e_bank').value.trim(), beneficiary:$('#e_beneficiary').value.trim(), iban:$('#e_iban').value.trim()
+  };
+  var payload={ action:'updateRow', key:$('#key').value.trim(), year:$('#year').value.trim(), row:Number(editingRow), fields:fields };
+  closeEdit();
+  fetch(API_URL,{ method:'POST', body: JSON.stringify(payload) })
+    .then(function(r){ return r.json(); }).then(function(){ setTimeout(loadList,500); }).catch(function(){ setTimeout(loadList,500); });
+}
+
+function csvCell(v){ v=String(v==null?'':v); return /[;"\n]/.test(v) ? ('"'+v.replace(/"/g,'""')+'"') : v; }
+function exportCsv(){
+  if(!currentRows.length){ msg('Δεν υπάρχουν δεδομένα για εξαγωγή.','bad'); return; }
+  var cols=['Α/Α','Ημ/νία υποβολής','Όνομα','Τηλέφωνο','Ταμείο','Αφορά','Προμηθευτής','Ημ.αγοράς','Ποσό (€)','Τύπος πληρωμής','Ξαναέλαβε','Τραπεζικά πού','Τράπεζα','Δικαιούχος','IBAN','Κατάσταση','Ημ.καταχώρησης','Ημ.πληρωμής','Υπεύθυνος','Αποδείξεις','Στοιχεία προμηθευτή'];
+  var lines=[cols.join(';')];
+  currentRows.forEach(function(r){
+    lines.push([r.id,r.date,r.name,r.phone,r.fund,r.subject,r.supplier,r.purchaseDate,r.amount,r.payType,r.returning,r.bankLoc,r.bank,r.beneficiary,r.iban,r.status,r.recordDate||'',r.payDate||'',r.responsible||'',(r.receipts||[]).join(' | '),(r.bankDocs||[]).join(' | ')].map(csvCell).join(';'));
+  });
+  var blob=new Blob(['﻿'+lines.join('\r\n')],{type:'text/csv;charset=utf-8'});
+  var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='Εξοδα_'+(currentYear||'')+'.csv'; document.body.appendChild(a); a.click(); a.remove();
+}
+/* Κλικ στο ID → αντιγραφή reference για την τραπεζική εντολή */
+document.addEventListener('click',function(e){
+  var el=e.target.closest?e.target.closest('.idcopy'):null;
+  if(!el) return;
+  var id=el.getAttribute('data-id')||'';
+  function done(){ var t=el.textContent; el.textContent='✓ αντιγράφηκε'; setTimeout(function(){ el.textContent=id+' ⧉'; },1200); }
+  if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(id).then(done,done); }
+  else{ var ta=document.createElement('textarea'); ta.value=id; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); done(); }
+});
+</script>
+</body>
+</html>
