@@ -76,10 +76,21 @@
   </header>
 
   <div class="notice">
-    <b>Προσοχή:</b> Για έξοδα <b>δράσης / κατασκήνωσης / εκδήλωσης</b> γράψε στο «Τι αφορά» τον <b>κωδικό</b> της (π.χ. <b>DA1</b> · <b>KAT-OP</b> · <b>E01</b>) — αλλιώς καταχωρείται ως γενικό έξοδο Συστήματος.
+    <b>Προσοχή:</b> Από εδώ δηλώνονται έξοδα του <b>Συστήματος</b> ή <b>εκδηλώσεων</b>. <b style="color:var(--err)">Τα έξοδα ΔΡΑΣΕΩΝ (κατασκηνώσεις, εκδρομές, διήμερα/τριήμερα) ΔΕΝ δηλώνονται από εδώ</b> — αυτά μπαίνουν στον Απολογισμό της δράσης.
   </div>
 
   <form id="f" novalidate>
+    <div class="card">
+      <label class="req">Το έξοδο είναι για:</label>
+      <input type="hidden" name="category" value="">
+      <div class="seg">
+        <button type="button" data-cat="system">Το Σύστημα</button>
+        <button type="button" data-cat="event">Εκδήλωση</button>
+      </div>
+      <div class="hint">«Σύστημα» = πρόγραμμα, εξοπλισμός, αγορές, λειτουργικά έξοδα. «Εκδήλωση» = έξοδα για συγκεκριμένη εκδήλωση της 76ης. <b>Οι Δράσεις (κατασκηνώσεις/εκδρομές) ΔΕΝ μπαίνουν εδώ.</b></div>
+      <div class="fielderr" data-for="category">Διάλεξε αν είναι για το Σύστημα ή για εκδήλωση</div>
+    </div>
+
     <div class="card">
       <div class="row">
         <div>
@@ -110,16 +121,23 @@
 
     <div class="card">
       <label class="req">Τι αφορά</label>
-      <input name="subject" placeholder="π.χ. DA1 λεωφορείο — ή: Υλικά για χειροτεχνία αγέλης">
-      <div class="hint">Αν αφορά δράση/κατασκήνωση/εκδήλωση, ξεκίνα με τον κωδικό της (DA1, DO2, KAT-AL, KAT-OP, MDY, E01…).</div>
+      <input name="subject" placeholder="π.χ. Υλικά για χειροτεχνία αγέλης">
       <div class="fielderr" data-for="subject">Πες μας τι αφορά</div>
 
       <label>Περιγραφή (προαιρετικό)</label>
       <textarea name="description" placeholder="Λεπτομέρειες αν χρειάζεται"></textarea>
 
-      <label class="req">Από ποιο ταμείο</label>
-      <select name="fund"><option value="">— Επίλεξε —</option></select>
-      <div class="fielderr" data-for="fund">Επίλεξε ταμείο</div>
+      <div id="fundBlock" class="hidden">
+        <label class="req">Από ποιο ταμείο</label>
+        <select name="fund"><option value="">— Επίλεξε —</option></select>
+        <div class="fielderr" data-for="fund">Επίλεξε ταμείο</div>
+      </div>
+      <div id="eventBlock" class="hidden">
+        <label class="req">Για ποια εκδήλωση</label>
+        <select name="event"><option value="">— Επίλεξε —</option></select>
+        <input name="eventOther" class="hidden" placeholder="Γράψε την εκδήλωση" style="margin-top:8px">
+        <div class="fielderr" data-for="event">Επίλεξε ή γράψε εκδήλωση</div>
+      </div>
 
       <div class="row">
         <div>
@@ -302,12 +320,16 @@
 
 <script>
 /* ── ΡΥΘΜΙΣΗ: βάλε το /exec URL του Apps Script Web App ─────────────── */
-var API_URL = 'https://script.google.com/macros/s/AKfycbz5CwEGzyYUlUIGwyv_ZTEEWvaqqkqtAcxzcJevY9en3xKzBo4WqujL--Jkg_yvLJcM/exec';
+var API_URL = 'https://script.google.com/macros/s/AKfycbxNNs-68RXpYVlomtAtnpm3BOiy9C8nM-Ooap9LueWaaqKzqZRa_LIU8a0qJGwv33aE/exec';
 
 var BANKS = ['Τράπεζα Κύπρου','Eurobank / πρώην Ελληνική Τράπεζα','Revolut','Άλλο'];
 var FALLBACK_FUNDS = ['TS Ταμείο Συστήματος','TA Ταμείο Αγέλης','TO Ταμείο Ομάδας','TK Ταμείο Κοινότητας',
   'PR Πρόβλεψη (υποταμείο TS)','TV Ταμείο Βαθμοφόρων','PK Ειδικό Project ΚΑ','PO Ειδικό Ανακαίνιση ΟΠ',
   'EP Ειδικό Επίλεκτος','Άλλο'];
+
+// Εκδηλώσεις της 76ης (πρόχειρη λίστα — προσαρμόζεται). «Άλλη εκδήλωση» → ελεύθερο κείμενο.
+var EVENTS = ['Χριστουγεννιάτικη Εκδήλωση','Πασχαλινή Εκδήλωση','Αγιασμός / Έναρξη χρονιάς','Γιορτή Λήξης',
+  'Εβδομάδα Προσκοπισμού','Οικονομική Εξόρμηση / Bazaar','Ημέρα Σκέψης','Άλλη εκδήλωση'];
 
 var receipts = [];   // {name,type,data(base64)}
 var $ = function(s,r){return (r||document).querySelector(s)};
@@ -317,7 +339,34 @@ function fill(sel, items){
   var el = $('[name="'+sel+'"]');
   items.forEach(function(v){ var o=document.createElement('option'); o.value=v; o.textContent=v; el.appendChild(o); });
 }
-fill('bank', BANKS); fill('bankNew', BANKS);
+fill('bank', BANKS); fill('bankNew', BANKS); fill('event', EVENTS);
+
+/* Κατηγορία: Σύστημα ή Εκδήλωση (πρώτη επιλογή) */
+var category=null;
+$$('[data-cat]').forEach(function(b){
+  b.onclick=function(){
+    category=b.getAttribute('data-cat');
+    $$('[data-cat]').forEach(function(x){x.classList.remove('on')}); b.classList.add('on');
+    $('[name="category"]').value=category;
+    $('#fundBlock').classList.toggle('hidden', category!=='system');
+    $('#eventBlock').classList.toggle('hidden', category!=='event');
+    clearErr('category');
+  };
+});
+/* «Άλλη εκδήλωση» → ελεύθερο κείμενο */
+$('[name="event"]').addEventListener('change', function(){
+  $('[name="eventOther"]').classList.toggle('hidden', this.value!=='Άλλη εκδήλωση');
+});
+
+/* Ενεργό «ταμείο/εκδήλωση» για filename & αποστολή */
+function effectiveFund(){
+  if(category==='event'){
+    var ev=$('[name="event"]').value;
+    if(ev==='Άλλη εκδήλωση') ev=($('[name="eventOther"]').value||'').trim();
+    return ev ? ('Εκδήλωση: '+ev) : '';
+  }
+  return $('[name="fund"]').value||'';
+}
 
 /* Ταμεία: JSONP από το backend· fallback σε λίστα. */
 function loadFunds(){
@@ -342,7 +391,7 @@ loadFunds();
 
 /* Auto-save πρόχειρου (να μη χάνεται ό,τι γράφτηκε αν ανοίξει κάμερα/reload σε κινητό) */
 var DRAFT_KEY='reimbDraft76';
-var draftFields=['firstName','lastName','email','phone','subject','description','supplier','purchaseDate','amount','beneficiary','iban','dBeneficiary','dBank','dIban','bankOther','bankNewOther','noReceiptReason'];
+var draftFields=['firstName','lastName','email','phone','subject','description','supplier','purchaseDate','amount','beneficiary','iban','dBeneficiary','dBank','dIban','bankOther','bankNewOther','noReceiptReason','eventOther'];
 function saveDraft(){ try{ var o={}; draftFields.forEach(function(n){ var el=$('[name="'+n+'"]'); if(el) o[n]=el.value; }); var fv=$('[name="fund"]'); if(fv) o.fund=fv.value; sessionStorage.setItem(DRAFT_KEY, JSON.stringify(o)); }catch(e){} }
 function clearDraft(){ try{ sessionStorage.removeItem(DRAFT_KEY); }catch(e){} }
 (function(){ try{ var o=JSON.parse(sessionStorage.getItem(DRAFT_KEY)||'{}'); draftFields.forEach(function(n){ var el=$('[name="'+n+'"]'); if(el&&o[n]) el.value=o[n]; }); }catch(e){} })();
@@ -523,7 +572,7 @@ function sampleBilinear(sd,sw,sh,x,y,od,oi){
 /* Meaningful filename: ΗΜ/ΝΙΑ_Κατηγορία_Vendor_Ποσό€.jpg */
 function buildName(){
   var d=($('[name="purchaseDate"]').value||'').trim(),
-      fund=($('[name="fund"]').value||'').trim(),
+      fund=effectiveFund().trim(),
       sup=($('[name="supplier"]').value||'').trim(),
       amt=(($('[name="amount"]').value||'')+'').trim();
   var base=[d,fund,sup, amt?amt+'€':''].filter(Boolean).join('_') || 'apodeixi';
@@ -628,9 +677,17 @@ function clearErr(name){ var el=$('.fielderr[data-for="'+name+'"]'); if(el) el.s
 
 function val(n){ return ($('[name="'+n+'"]').value||'').trim(); }
 function validate(){
-  var ok=true, need=['firstName','lastName','phone','subject','fund','supplier','purchaseDate','amount'];
+  var ok=true, need=['firstName','lastName','phone','subject','supplier','purchaseDate','amount'];
   need.forEach(function(n){ if(!val(n)){showErr(n);ok=false;} else clearErr(n); });
   if(val('amount') && isNaN(parseFloat(val('amount').replace(',','.')))){ showErr('amount'); ok=false; }
+
+  // Κατηγορία + ταμείο/εκδήλωση
+  if(!category){ showErr('category'); ok=false; }
+  else if(category==='system'){ if(!$('[name="fund"]').value){showErr('fund');ok=false;} else clearErr('fund'); }
+  else { // event
+    var ev=$('[name="event"]').value;
+    if(!ev || (ev==='Άλλη εκδήλωση' && !val('eventOther'))){ showErr('event'); ok=false; } else clearErr('event');
+  }
 
   if(noReceipt){ if(!val('noReceiptReason')){showErr('noReceiptReason');ok=false;} else clearErr('noReceiptReason'); }
   else if(!receipts.length){ showErr('receipts'); ok=false; } else clearErr('receipts');
@@ -678,7 +735,8 @@ $('#f').addEventListener('submit', function(ev){
     firstName:val('firstName'), lastName:val('lastName'),
     email:val('email'), phone:val('phone'),
     subject:val('subject'), description:val('description'),
-    fund:$('[name="fund"]').value, supplier:val('supplier'),
+    category: category==='event' ? 'Εκδήλωση' : 'Σύστημα',
+    fund:effectiveFund(), supplier:val('supplier'),
     purchaseDate:$('[name="purchaseDate"]').value, amount:val('amount').replace(',','.'),
     payType: payType,
     returning: isDirect ? false : returning,
