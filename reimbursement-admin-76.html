@@ -163,8 +163,10 @@
       <option>Απευθείας στον προμηθευτή</option>
     </select>
     <select id="sort" title="Σειρά">
-      <option value="new">Σειρά: νεότερα πρώτα</option>
-      <option value="old">Σειρά: παλαιότερα πρώτα</option>
+      <option value="new">Σειρά: ημ. αιτήματος – νεότερα</option>
+      <option value="old">Σειρά: ημ. αιτήματος – παλαιότερα</option>
+      <option value="pnew">Σειρά: ημ. εξόδου – νεότερα</option>
+      <option value="pold">Σειρά: ημ. εξόδου – παλαιότερα</option>
       <option value="amtd">Σειρά: ποσό ↓</option>
       <option value="amta">Σειρά: ποσό ↑</option>
       <option value="name">Σειρά: όνομα Α→Ω</option>
@@ -394,6 +396,8 @@ function applyView(){
   var cmp={
     new:function(a,b){ return String(b.submitDate||'').localeCompare(String(a.submitDate||'')) || b.row-a.row; },
     old:function(a,b){ return String(a.submitDate||'').localeCompare(String(b.submitDate||'')) || a.row-b.row; },
+    pnew:function(a,b){ var x=String(a.purchaseDate||''), y=String(b.purchaseDate||''); return (!x)-(!y) || y.localeCompare(x) || b.row-a.row; },
+    pold:function(a,b){ var x=String(a.purchaseDate||''), y=String(b.purchaseDate||''); return (!x)-(!y) || x.localeCompare(y) || a.row-b.row; },
     amtd:function(a,b){ return num(b.amount)-num(a.amount); },
     amta:function(a,b){ return num(a.amount)-num(b.amount); },
     name:function(a,b){ return String(a.name||'').localeCompare(String(b.name||''),'el'); },
@@ -504,7 +508,7 @@ function rowHTML(r){
   var cls=(st(r)==='Ακυρώθηκε'?'is-cancelled ':'')+(isLate(r)?'late ':'')+(picked[r.row]?'picked':'');
   return '<tr class="'+cls+'" data-row="'+r.row+'">'+
     '<td><input type="checkbox" class="sel"'+(picked[r.row]?' checked':'')+'></td>'+
-    '<td>'+esc(r.id)+'<br><small>'+esc(r.date)+'</small></td>'+
+    '<td>'+esc(r.id)+'<br><small>αίτ. '+esc(r.date)+'</small>'+(r.purchaseDate?'<br><small>έξοδο '+esc(r.purchaseDate)+'</small>':'')+'</td>'+
     '<td><b>'+esc(r.name)+'</b><br><small>'+esc(r.phone||'')+'</small></td>'+
     '<td>'+esc(r.fund)+'</td>'+
     '<td>'+esc(r.subject)+'<br><small>'+esc(r.supplier)+(r.payType==='Απευθείας στον προμηθευτή'?' · απευθείας':'')+'</small></td>'+
