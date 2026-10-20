@@ -106,9 +106,10 @@
       </div>
       <div class="row">
         <div>
-          <label>Email <span style="font-weight:400">(προαιρετικό)</span></label>
+          <label>Email</label>
           <input name="email" type="email" autocomplete="email">
-          <div class="hint">Μόνο για επιβεβαίωση παραλαβής</div>
+          <div class="hint">Εδώ θα λάβεις επιβεβαίωση παραλαβής και ειδοποίηση όταν σταλεί το ποσό</div>
+          <div class="fielderr" data-for="email">Συμπλήρωσε ένα σωστό email</div>
         </div>
         <div>
           <label class="req">Τηλέφωνο</label>
@@ -280,7 +281,7 @@
     <p>Υπεύθυνος επεξεργασίας: το <b>76ο Σύστημα Προσκόπων Στροβόλου</b>, υπό τη σκέπη του Σώματος Προσκόπων Κύπρου (ΣΠΚ). Επικοινωνία: <a href="mailto:as@76.life">as@76.life</a>.</p>
 
     <h4>2. Ποια δεδομένα συλλέγουμε</h4>
-    <p>Όνομα/επίθετο· τηλέφωνο και email (προαιρετικά)· στοιχεία του εξόδου (τι αφορά, ταμείο, προμηθευτής, ημερομηνία, ποσό)· <b>τραπεζικά στοιχεία</b> (δικαιούχος + IBAN/αριθμός λογαριασμού, ή στοιχεία προμηθευτή)· <b>αποδείξεις/τιμολόγια</b> που ανεβάζεις.</p>
+    <p>Όνομα/επίθετο· τηλέφωνο και email· στοιχεία του εξόδου (τι αφορά, ταμείο, προμηθευτής, ημερομηνία, ποσό)· <b>τραπεζικά στοιχεία</b> (δικαιούχος + IBAN/αριθμός λογαριασμού, ή στοιχεία προμηθευτή)· <b>αποδείξεις/τιμολόγια</b> που ανεβάζεις.</p>
 
     <h4>3. Γιατί &amp; νομική βάση</h4>
     <table>
@@ -680,6 +681,7 @@ function val(n){ return ($('[name="'+n+'"]').value||'').trim(); }
 function validate(){
   var ok=true, need=['firstName','lastName','phone','subject','supplier','purchaseDate','amount'];
   need.forEach(function(n){ if(!val(n)){showErr(n);ok=false;} else clearErr(n); });
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val('email'))){ showErr('email'); ok=false; } else clearErr('email');
   if(val('amount') && isNaN(parseFloat(val('amount').replace(',','.')))){ showErr('amount'); ok=false; }
 
   // Κατηγορία + ταμείο/εκδήλωση
